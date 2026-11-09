@@ -7,35 +7,35 @@
 // 1. Initial State & Configuration
 // ==========================================================================
 
-const STORAGE_KEY = 'interactive_expenses_data';
+const STORAGE_KEY = 'interactive_expenses_inr_data';
 
 // Default initial expenses provided if localStorage is empty
 const DEFAULT_EXPENSES = [
   {
     id: 'exp-1',
-    title: 'Weekly Groceries',
-    amount: 86.50,
+    title: 'Weekly Groceries & Vegetables',
+    amount: 2450.00,
     category: 'Food & Dining',
     date: '2026-11-05'
   },
   {
     id: 'exp-2',
-    title: 'Subway Monthly Pass',
-    amount: 65.00,
+    title: 'Metro Smart Card Recharge',
+    amount: 800.00,
     category: 'Transportation',
     date: '2026-11-03'
   },
   {
     id: 'exp-3',
-    title: 'Electric & Internet Bill',
-    amount: 112.40,
+    title: 'Electricity & Wifi Bill',
+    amount: 1850.00,
     category: 'Housing & Utilities',
     date: '2026-11-01'
   },
   {
     id: 'exp-4',
-    title: 'Cinema & Snacks',
-    amount: 28.00,
+    title: 'Movie Tickets & Snacks',
+    amount: 650.00,
     category: 'Entertainment',
     date: '2026-11-07'
   }
@@ -134,12 +134,12 @@ function saveExpenses() {
 // ==========================================================================
 
 /**
- * Formats a numeric value into USD currency string.
+ * Formats a numeric value into Indian Rupees (INR) currency string (₹).
  */
 function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount);
@@ -226,7 +226,7 @@ function validateForm() {
 
   // Amount validation
   if (isNaN(amount) || amount <= 0) {
-    amountError.textContent = 'Please enter a valid amount greater than $0.00.';
+    amountError.textContent = 'Please enter a valid amount greater than ₹0.00.';
     expenseAmountInput.classList.add('input-error');
     isValid = false;
   }
@@ -321,7 +321,7 @@ function updateSummaryCards(filteredList) {
   // Top Category Calculation
   if (expenses.length === 0) {
     topCategoryNameEl.textContent = '—';
-    topCategoryAmountEl.textContent = '$0.00 spent';
+    topCategoryAmountEl.textContent = '₹0.00 spent';
     return;
   }
 
@@ -662,3 +662,4 @@ function initApp() {
 
 // Start app once DOM is fully parsed
 document.addEventListener('DOMContentLoaded', initApp);
+

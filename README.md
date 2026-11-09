@@ -22,7 +22,7 @@ This project was developed as a hands-on web application to master core front-en
 | Deliverable | Description |
 | :--- | :--- |
 | **Expense Entry Form** | Add new expenses with Title, Amount, Category, and Date. Automatically sets today's date. |
-| **Input Validation** | Verifies non-empty title (min 2 chars), positive amount (> $0.00), valid category, and valid date with real-time error messaging. |
+| **Input Validation** | Verifies non-empty title (min 2 chars), positive amount (> ₹0.00), valid category, and valid date with real-time error messaging. |
 | **Expense Listing** | Clean, styled table showing date, title, color-coded category badges, formatted currency, and action buttons. |
 | **Edit Functionality** | Loads existing expense data into the form with an "Editing" status indicator and a "Cancel" option. |
 | **Delete Functionality** | Removes an expense with a confirmation prompt and immediate UI/Storage update. |
