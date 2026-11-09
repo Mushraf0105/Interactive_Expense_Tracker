@@ -56,6 +56,9 @@ const expenseIdInput = document.getElementById('expense-id');
 const expenseTitleInput = document.getElementById('expense-title');
 const expenseAmountInput = document.getElementById('expense-amount');
 const expenseCategoryInput = document.getElementById('expense-category');
+const wrapperExpenseCategory = document.getElementById('wrapper-expense-category');
+const expenseCategoryToggle = document.getElementById('expense-category-toggle');
+const expenseCategoryDropdown = document.getElementById('expense-category-dropdown');
 const expenseDateInput = document.getElementById('expense-date');
 const submitBtn = document.getElementById('submit-btn');
 const submitBtnText = document.getElementById('submit-btn-text');
@@ -504,14 +507,57 @@ function updateSortByDisplay() {
 }
 
 /**
- * Updates the datalist with known categories for quick suggestions.
+ * Category Combobox Engine for Expense Form
  */
-function updateCategorySuggestions() {
-  const datalist = document.getElementById('category-suggestions');
-  if (!datalist) return;
-  const defaultList = ['Food & Dining', 'Transportation', 'Housing & Utilities', 'Entertainment', 'Healthcare', 'Shopping', 'Other'];
-  const allCategories = Array.from(new Set([...defaultList, ...expenses.map(e => e.category).filter(Boolean)])).sort();
-  datalist.innerHTML = allCategories.map(cat => `<option value="${escapeHtml(cat)}">`).join('');
+const DEFAULT_CATEGORY_OPTIONS = [
+  { name: 'Food & Dining', icon: '🍔' },
+  { name: 'Transportation', icon: '🚗' },
+  { name: 'Housing & Utilities', icon: '💡' },
+  { name: 'Entertainment', icon: '🎬' },
+  { name: 'Healthcare', icon: '💊' },
+  { name: 'Shopping', icon: '🛍️' },
+  { name: 'Other', icon: '📦' }
+];
+
+function getAllCategoryOptions() {
+  const map = new Map();
+  DEFAULT_CATEGORY_OPTIONS.forEach(c => map.set(c.name, c.icon));
+  expenses.forEach(e => {
+    if (e.category && !map.has(e.category)) {
+      map.set(e.category, '🏷️');
+    }
+  });
+  return Array.from(map.entries()).map(([name, icon]) => ({ name, icon }));
+}
+
+function renderCategoryDropdown(query = '') {
+  if (!expenseCategoryDropdown) return;
+  const list = getAllCategoryOptions();
+  const search = (query || '').toLowerCase().trim();
+  const filtered = list.filter(item => !search || item.name.toLowerCase().includes(search));
+
+  if (filtered.length === 0) {
+    expenseCategoryDropdown.innerHTML = `<div class="combobox-empty">Custom: "${escapeHtml(query)}"</div>`;
+    return;
+  }
+
+  expenseCategoryDropdown.innerHTML = filtered.map(item => `
+    <div class="combobox-option" data-value="${escapeHtml(item.name)}">
+      <span>${item.icon}</span>
+      <span>${escapeHtml(item.name)}</span>
+    </div>
+  `).join('');
+}
+
+function openCategoryDropdown() {
+  if (!wrapperExpenseCategory) return;
+  renderCategoryDropdown(expenseCategoryInput ? expenseCategoryInput.value : '');
+  wrapperExpenseCategory.classList.add('open');
+}
+
+function closeCategoryDropdown() {
+  if (!wrapperExpenseCategory) return;
+  wrapperExpenseCategory.classList.remove('open');
 }
 
 // ==========================================================================
@@ -618,7 +664,7 @@ function render() {
   // Sync category filter options, sort display, and suggestions
   updateCategoryFilterOptions();
   updateSortByDisplay();
-  updateCategorySuggestions();
+  renderCategoryDropdown(expenseCategoryInput ? expenseCategoryInput.value : '');
 
   // Update Summary Dashboards
   updateSummaryCards(visibleExpenses);
@@ -902,6 +948,8 @@ function setupEventListeners() {
     if (e.key === 'Escape') {
       if (customCalendarModal && customCalendarModal.style.display !== 'none') {
         closeCalendarModal();
+      } else if (wrapperExpenseCategory && wrapperExpenseCategory.classList.contains('open')) {
+        closeCategoryDropdown();
       } else if (wrapperFilterCategory && wrapperFilterCategory.classList.contains('open')) {
         wrapperFilterCategory.classList.remove('open');
       } else if (wrapperSortBy && wrapperSortBy.classList.contains('open')) {
@@ -927,14 +975,49 @@ function setupEventListeners() {
     }
   });
 
-  const clearCategoryError = () => {
-    if (expenseCategoryInput.value.trim()) {
+  // Category Combobox Dropdown in Form
+  if (expenseCategoryInput) {
+    expenseCategoryInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openCategoryDropdown();
+    });
+
+    expenseCategoryInput.addEventListener('focus', () => {
+      openCategoryDropdown();
+    });
+
+    expenseCategoryInput.addEventListener('input', () => {
+      openCategoryDropdown();
+      if (expenseCategoryInput.value.trim()) {
+        categoryError.textContent = '';
+        expenseCategoryInput.classList.remove('input-error');
+      }
+    });
+  }
+
+  if (expenseCategoryToggle) {
+    expenseCategoryToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (wrapperExpenseCategory && wrapperExpenseCategory.classList.contains('open')) {
+        closeCategoryDropdown();
+      } else {
+        openCategoryDropdown();
+        expenseCategoryInput.focus();
+      }
+    });
+  }
+
+  if (expenseCategoryDropdown) {
+    expenseCategoryDropdown.addEventListener('click', (e) => {
+      const opt = e.target.closest('.combobox-option');
+      if (!opt) return;
+      const val = opt.dataset.value;
+      expenseCategoryInput.value = val;
       categoryError.textContent = '';
       expenseCategoryInput.classList.remove('input-error');
-    }
-  };
-  expenseCategoryInput.addEventListener('input', clearCategoryError);
-  expenseCategoryInput.addEventListener('change', clearCategoryError);
+      closeCategoryDropdown();
+    });
+  }
 
   // Smart toggle custom dropdown with drop-up detection
   function toggleCustomDropdown(wrapper) {
@@ -1009,6 +1092,9 @@ function setupEventListeners() {
 
   // Click outside closes custom dropdowns
   document.addEventListener('click', (e) => {
+    if (wrapperExpenseCategory && !wrapperExpenseCategory.contains(e.target)) {
+      closeCategoryDropdown();
+    }
     if (wrapperFilterCategory && !wrapperFilterCategory.contains(e.target)) {
       wrapperFilterCategory.classList.remove('open', 'drop-up');
     }

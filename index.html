@@ -109,25 +109,24 @@
 
             <div class="form-group">
               <label for="expense-category">Category <span class="required">*</span></label>
-              <input 
-                type="text" 
-                id="expense-category" 
-                name="category" 
-                placeholder="e.g., Food, Travel, Utilities" 
-                required
-                maxlength="30"
-                autocomplete="off"
-                list="category-suggestions"
-              >
-              <datalist id="category-suggestions">
-                <option value="Food & Dining">
-                <option value="Transportation">
-                <option value="Housing & Utilities">
-                <option value="Entertainment">
-                <option value="Healthcare">
-                <option value="Shopping">
-                <option value="Other">
-              </datalist>
+              <div class="custom-combobox-wrapper" id="wrapper-expense-category">
+                <input 
+                  type="text" 
+                  id="expense-category" 
+                  name="category" 
+                  class="custom-combobox-input"
+                  placeholder="e.g., Food, Travel, Utilities" 
+                  required
+                  maxlength="40"
+                  autocomplete="off"
+                >
+                <button type="button" id="expense-category-toggle" class="combobox-toggle-btn" aria-label="Toggle category dropdown">
+                  ▾
+                </button>
+                <div class="custom-combobox-dropdown" id="expense-category-dropdown" role="listbox">
+                  <!-- Dynamically populated options -->
+                </div>
+              </div>
               <small class="error-msg" id="category-error"></small>
             </div>
 
