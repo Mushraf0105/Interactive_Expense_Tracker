@@ -182,22 +182,39 @@ function formatDate(dateStr) {
  * Maps category name to CSS class for badge styling.
  */
 function getCategoryClass(category) {
-  switch (category) {
-    case 'Food & Dining':
-      return 'cat-food';
-    case 'Transportation':
-      return 'cat-transport';
-    case 'Housing & Utilities':
-      return 'cat-housing';
-    case 'Entertainment':
-      return 'cat-entertainment';
-    case 'Healthcare':
-      return 'cat-health';
-    case 'Shopping':
-      return 'cat-shopping';
-    default:
-      return 'cat-other';
+  const norm = (category || '').toLowerCase().trim();
+  if (norm.includes('food') || norm.includes('dining') || norm.includes('grocer') || norm.includes('snack') || norm.includes('restaur') || norm.includes('cafe')) {
+    return 'cat-food';
   }
+  if (norm.includes('transport') || norm.includes('travel') || norm.includes('fuel') || norm.includes('cab') || norm.includes('metro') || norm.includes('bus') || norm.includes('auto')) {
+    return 'cat-transport';
+  }
+  if (norm.includes('housing') || norm.includes('utilit') || norm.includes('bill') || norm.includes('rent') || norm.includes('electr') || norm.includes('wifi') || norm.includes('water')) {
+    return 'cat-housing';
+  }
+  if (norm.includes('entertain') || norm.includes('movie') || norm.includes('cinema') || norm.includes('game') || norm.includes('netflix') || norm.includes('show')) {
+    return 'cat-entertainment';
+  }
+  if (norm.includes('health') || norm.includes('medic') || norm.includes('pharm') || norm.includes('doctor') || norm.includes('fitness') || norm.includes('gym')) {
+    return 'cat-health';
+  }
+  if (norm.includes('shop') || norm.includes('cloth') || norm.includes('store') || norm.includes('amazon') || norm.includes('flipkart') || norm.includes('myntra')) {
+    return 'cat-shopping';
+  }
+  return 'cat-other';
+}
+
+/**
+ * Returns a consistent hex or HSL color for any category name.
+ */
+function getCategoryColor(category) {
+  if (CATEGORY_COLORS[category]) return CATEGORY_COLORS[category];
+  let hash = 0;
+  for (let i = 0; i < (category || '').length; i++) {
+    hash = category.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 65%, 48%)`;
 }
 
 // ==========================================================================
@@ -226,7 +243,7 @@ function validateForm() {
 
   const title = expenseTitleInput.value.trim();
   const amount = parseFloat(expenseAmountInput.value);
-  const category = expenseCategoryInput.value;
+  const category = expenseCategoryInput.value.trim();
   const date = expenseDateInput.value;
 
   // Title validation
@@ -249,7 +266,7 @@ function validateForm() {
 
   // Category validation
   if (!category) {
-    categoryError.textContent = 'Please select a category.';
+    categoryError.textContent = 'Please enter a category.';
     expenseCategoryInput.classList.add('input-error');
     isValid = false;
   }
@@ -386,7 +403,7 @@ function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
 
   sorted.forEach(([cat, amt]) => {
     const pct = ((amt / totalAmount) * 100).toFixed(1);
-    const color = CATEGORY_COLORS[cat] || '#64748b';
+    const color = getCategoryColor(cat);
 
     // Segment
     const segment = document.createElement('div');
@@ -409,6 +426,36 @@ function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
   });
 }
 
+/**
+ * Synchronizes the category filter dropdown options with all existing categories.
+ */
+function updateCategoryFilterOptions() {
+  const currentVal = filterCategorySelect.value;
+  const categories = Array.from(new Set(expenses.map(item => item.category).filter(Boolean))).sort();
+
+  filterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
+  categories.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    if (cat === currentVal) {
+      opt.selected = true;
+    }
+    filterCategorySelect.appendChild(opt);
+  });
+}
+
+/**
+ * Updates the datalist with known categories for quick suggestions.
+ */
+function updateCategorySuggestions() {
+  const datalist = document.getElementById('category-suggestions');
+  if (!datalist) return;
+  const defaultList = ['Food & Dining', 'Transportation', 'Housing & Utilities', 'Entertainment', 'Healthcare', 'Shopping', 'Other'];
+  const allCategories = Array.from(new Set([...defaultList, ...expenses.map(e => e.category).filter(Boolean)])).sort();
+  datalist.innerHTML = allCategories.map(cat => `<option value="${escapeHtml(cat)}">`).join('');
+}
+
 // ==========================================================================
 // 8. Render UI
 // ==========================================================================
@@ -418,6 +465,10 @@ function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
  */
 function render() {
   const visibleExpenses = getFilteredAndSortedExpenses();
+
+  // Sync category filter options and suggestions
+  updateCategoryFilterOptions();
+  updateCategorySuggestions();
 
   // Update Summary Dashboards
   updateSummaryCards(visibleExpenses);
@@ -502,7 +553,7 @@ function handleFormSubmit(e) {
 
   const title = expenseTitleInput.value.trim();
   const amount = parseFloat(expenseAmountInput.value);
-  const category = expenseCategoryInput.value;
+  const category = expenseCategoryInput.value.trim();
   const date = expenseDateInput.value;
 
   if (isEditing && currentEditId) {
@@ -709,12 +760,14 @@ function setupEventListeners() {
     }
   });
 
-  expenseCategoryInput.addEventListener('change', () => {
-    if (expenseCategoryInput.value) {
+  const clearCategoryError = () => {
+    if (expenseCategoryInput.value.trim()) {
       categoryError.textContent = '';
       expenseCategoryInput.classList.remove('input-error');
     }
-  });
+  };
+  expenseCategoryInput.addEventListener('input', clearCategoryError);
+  expenseCategoryInput.addEventListener('change', clearCategoryError);
 
   expenseDateInput.addEventListener('change', () => {
     if (expenseDateInput.value) {
