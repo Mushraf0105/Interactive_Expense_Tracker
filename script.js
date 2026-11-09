@@ -1,8 +1,3 @@
-/**
- * Interactive Expense Tracker Web Application
- * Pure JavaScript Implementation (ES6+)
- */
-
 // ==========================================================================
 // 1. Initial State & Configuration
 // ==========================================================================
@@ -192,7 +187,7 @@ function formatDate(dateStr) {
   if (!dateStr) return '—';
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
-  
+
   // Construct date in local timezone to avoid UTC day offset
   const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
   return dateObj.toLocaleDateString('en-US', {
