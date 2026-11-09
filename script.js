@@ -100,6 +100,27 @@ const filterEndDateInput = document.getElementById('filter-end-date');
 const sortBySelect = document.getElementById('sort-by');
 const resetFiltersBtn = document.getElementById('reset-filters-btn');
 
+// Custom Mobile-Responsive Dropdown Elements
+const wrapperFilterCategory = document.getElementById('wrapper-filter-category');
+const triggerFilterCategory = document.getElementById('trigger-filter-category');
+const selectedFilterCategoryText = document.getElementById('selected-filter-category-text');
+const menuFilterCategory = document.getElementById('menu-filter-category');
+
+const wrapperSortBy = document.getElementById('wrapper-sort-by');
+const triggerSortBy = document.getElementById('trigger-sort-by');
+const selectedSortByText = document.getElementById('selected-sort-by-text');
+const menuSortBy = document.getElementById('menu-sort-by');
+
+// Custom Mobile-Responsive Calendar Modal Elements
+const customCalendarModal = document.getElementById('custom-calendar-modal');
+const calPrevMonth = document.getElementById('cal-prev-month');
+const calNextMonth = document.getElementById('cal-next-month');
+const calMonthYear = document.getElementById('cal-month-year');
+const calDaysGrid = document.getElementById('cal-days-grid');
+const calTodayBtn = document.getElementById('cal-today-btn');
+const calClearBtn = document.getElementById('cal-clear-btn');
+const calCloseBtn = document.getElementById('cal-close-btn');
+
 // Listing & Table Elements
 const expenseListBody = document.getElementById('expense-list-body');
 const listingCountBadge = document.getElementById('listing-count-badge');
@@ -430,19 +451,56 @@ function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
  * Synchronizes the category filter dropdown options with all existing categories.
  */
 function updateCategoryFilterOptions() {
-  const currentVal = filterCategorySelect.value;
+  const currentVal = filterCategorySelect ? filterCategorySelect.value : 'all';
   const categories = Array.from(new Set(expenses.map(item => item.category).filter(Boolean))).sort();
 
-  filterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
-  categories.forEach(cat => {
-    const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    if (cat === currentVal) {
-      opt.selected = true;
-    }
-    filterCategorySelect.appendChild(opt);
-  });
+  if (filterCategorySelect) {
+    filterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
+    categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      if (cat === currentVal) {
+        opt.selected = true;
+      }
+      filterCategorySelect.appendChild(opt);
+    });
+  }
+
+  // Update Custom Dropdown Menu
+  if (menuFilterCategory) {
+    let menuHtml = `<div class="custom-option ${currentVal === 'all' ? 'selected' : ''}" data-value="all">All Categories</div>`;
+    categories.forEach(cat => {
+      const isSelected = cat === currentVal ? 'selected' : '';
+      menuHtml += `<div class="custom-option ${isSelected}" data-value="${escapeHtml(cat)}">${escapeHtml(cat)}</div>`;
+    });
+    menuFilterCategory.innerHTML = menuHtml;
+  }
+
+  // Update Trigger Text
+  if (selectedFilterCategoryText) {
+    selectedFilterCategoryText.textContent = currentVal === 'all' ? 'All Categories' : currentVal;
+  }
+}
+
+/**
+ * Updates the Sort By custom dropdown selection display.
+ */
+function updateSortByDisplay() {
+  const currentVal = sortBySelect ? sortBySelect.value : 'date-desc';
+  if (menuSortBy) {
+    const options = menuSortBy.querySelectorAll('.custom-option');
+    options.forEach(opt => {
+      if (opt.dataset.value === currentVal) {
+        opt.classList.add('selected');
+        if (selectedSortByText) {
+          selectedSortByText.textContent = opt.textContent.replace('✓', '').trim();
+        }
+      } else {
+        opt.classList.remove('selected');
+      }
+    });
+  }
 }
 
 /**
@@ -457,6 +515,97 @@ function updateCategorySuggestions() {
 }
 
 // ==========================================================================
+// Custom Mobile-Responsive Calendar Engine
+// ==========================================================================
+
+let activeCalendarInput = null;
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+function openCalendarModal(inputElement) {
+  if (!inputElement) return;
+  activeCalendarInput = inputElement;
+
+  if (inputElement.value && /^\d{4}-\d{2}-\d{2}$/.test(inputElement.value)) {
+    const parts = inputElement.value.split('-');
+    calYear = parseInt(parts[0], 10);
+    calMonth = parseInt(parts[1], 10) - 1;
+  } else {
+    const now = new Date();
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+  }
+
+  renderCalendar();
+  if (customCalendarModal) {
+    customCalendarModal.style.display = 'flex';
+  }
+}
+
+function closeCalendarModal() {
+  if (customCalendarModal) {
+    customCalendarModal.style.display = 'none';
+  }
+  activeCalendarInput = null;
+}
+
+function renderCalendar() {
+  if (!calMonthYear || !calDaysGrid) return;
+
+  calMonthYear.textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
+  calDaysGrid.innerHTML = '';
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0 = Sun
+  const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
+
+  const today = new Date();
+  const todayYMD = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const selectedYMD = activeCalendarInput ? activeCalendarInput.value : '';
+
+  // Blank days before the 1st
+  for (let i = 0; i < firstDay; i++) {
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'cal-day-cell empty-day';
+    calDaysGrid.appendChild(emptyCell);
+  }
+
+  // Active days 1..totalDays
+  for (let day = 1; day <= totalDays; day++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day-cell';
+    cell.textContent = day;
+
+    const currentYMD = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    if (currentYMD === todayYMD) {
+      cell.classList.add('today-day');
+    }
+    if (currentYMD === selectedYMD) {
+      cell.classList.add('selected-day');
+    }
+
+    cell.addEventListener('click', () => {
+      if (activeCalendarInput) {
+        activeCalendarInput.value = currentYMD;
+        activeCalendarInput.dispatchEvent(new Event('change'));
+        if (activeCalendarInput.id === 'expense-date') {
+          dateError.textContent = '';
+          activeCalendarInput.classList.remove('input-error');
+        }
+      }
+      closeCalendarModal();
+    });
+
+    calDaysGrid.appendChild(cell);
+  }
+}
+
+// ==========================================================================
 // 8. Render UI
 // ==========================================================================
 
@@ -466,8 +615,9 @@ function updateCategorySuggestions() {
 function render() {
   const visibleExpenses = getFilteredAndSortedExpenses();
 
-  // Sync category filter options and suggestions
+  // Sync category filter options, sort display, and suggestions
   updateCategoryFilterOptions();
+  updateSortByDisplay();
   updateCategorySuggestions();
 
   // Update Summary Dashboards
@@ -675,6 +825,15 @@ function resetFilters() {
   filterStartDateInput.value = '';
   filterEndDateInput.value = '';
   sortBySelect.value = 'date-desc';
+
+  // Reset Quick Date Presets
+  const presetButtons = document.querySelectorAll('.preset-btn');
+  presetButtons.forEach(b => b.classList.toggle('active', b.dataset.preset === 'all'));
+
+  // Update displays
+  updateCategoryFilterOptions();
+  updateSortByDisplay();
+
   render();
 }
 
@@ -738,10 +897,18 @@ function setupEventListeners() {
   // Cancel edit button
   cancelBtn.addEventListener('click', resetFormState);
 
-  // Keyboard shortcut: Escape cancels edit mode
+  // Keyboard shortcut: Escape cancels edit mode, closes calendar, or closes dropdowns
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isEditing) {
-      resetFormState();
+    if (e.key === 'Escape') {
+      if (customCalendarModal && customCalendarModal.style.display !== 'none') {
+        closeCalendarModal();
+      } else if (wrapperFilterCategory && wrapperFilterCategory.classList.contains('open')) {
+        wrapperFilterCategory.classList.remove('open');
+      } else if (wrapperSortBy && wrapperSortBy.classList.contains('open')) {
+        wrapperSortBy.classList.remove('open');
+      } else if (isEditing) {
+        resetFormState();
+      }
     }
   });
 
@@ -769,11 +936,172 @@ function setupEventListeners() {
   expenseCategoryInput.addEventListener('input', clearCategoryError);
   expenseCategoryInput.addEventListener('change', clearCategoryError);
 
-  expenseDateInput.addEventListener('change', () => {
-    if (expenseDateInput.value) {
-      dateError.textContent = '';
-      expenseDateInput.classList.remove('input-error');
+  // Custom Dropdown: Filter Category
+  if (triggerFilterCategory && wrapperFilterCategory) {
+    triggerFilterCategory.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (wrapperSortBy) wrapperSortBy.classList.remove('open');
+      wrapperFilterCategory.classList.toggle('open');
+    });
+  }
+
+  if (menuFilterCategory) {
+    menuFilterCategory.addEventListener('click', (e) => {
+      const option = e.target.closest('.custom-option');
+      if (!option) return;
+      const val = option.dataset.value;
+      if (filterCategorySelect) filterCategorySelect.value = val;
+      if (selectedFilterCategoryText) {
+        selectedFilterCategoryText.textContent = option.textContent.replace('✓', '').trim();
+      }
+      wrapperFilterCategory.classList.remove('open');
+      render();
+    });
+  }
+
+  // Custom Dropdown: Sort By
+  if (triggerSortBy && wrapperSortBy) {
+    triggerSortBy.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (wrapperFilterCategory) wrapperFilterCategory.classList.remove('open');
+      wrapperSortBy.classList.toggle('open');
+    });
+  }
+
+  if (menuSortBy) {
+    menuSortBy.addEventListener('click', (e) => {
+      const option = e.target.closest('.custom-option');
+      if (!option) return;
+      const val = option.dataset.value;
+      if (sortBySelect) sortBySelect.value = val;
+      updateSortByDisplay();
+      wrapperSortBy.classList.remove('open');
+      render();
+    });
+  }
+
+  // Click outside closes custom dropdowns
+  document.addEventListener('click', (e) => {
+    if (wrapperFilterCategory && !wrapperFilterCategory.contains(e.target)) {
+      wrapperFilterCategory.classList.remove('open');
     }
+    if (wrapperSortBy && !wrapperSortBy.contains(e.target)) {
+      wrapperSortBy.classList.remove('open');
+    }
+  });
+
+  // Custom Date Picker Modal Trigger Hooks
+  [expenseDateInput, filterStartDateInput, filterEndDateInput].forEach(input => {
+    if (!input) return;
+    input.addEventListener('click', () => openCalendarModal(input));
+    const container = input.closest('.custom-date-container');
+    if (container) {
+      const btn = container.querySelector('.calendar-btn');
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openCalendarModal(input);
+        });
+      }
+    }
+  });
+
+  // Calendar Modal Controls
+  if (calPrevMonth) {
+    calPrevMonth.addEventListener('click', () => {
+      calMonth--;
+      if (calMonth < 0) {
+        calMonth = 11;
+        calYear--;
+      }
+      renderCalendar();
+    });
+  }
+
+  if (calNextMonth) {
+    calNextMonth.addEventListener('click', () => {
+      calMonth++;
+      if (calMonth > 11) {
+        calMonth = 0;
+        calYear++;
+      }
+      renderCalendar();
+    });
+  }
+
+  if (calTodayBtn) {
+    calTodayBtn.addEventListener('click', () => {
+      if (activeCalendarInput) {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        activeCalendarInput.value = `${y}-${m}-${d}`;
+        activeCalendarInput.dispatchEvent(new Event('change'));
+        if (activeCalendarInput.id === 'expense-date') {
+          dateError.textContent = '';
+          activeCalendarInput.classList.remove('input-error');
+        }
+      }
+      closeCalendarModal();
+    });
+  }
+
+  if (calClearBtn) {
+    calClearBtn.addEventListener('click', () => {
+      if (activeCalendarInput) {
+        activeCalendarInput.value = '';
+        activeCalendarInput.dispatchEvent(new Event('change'));
+      }
+      closeCalendarModal();
+    });
+  }
+
+  if (calCloseBtn) {
+    calCloseBtn.addEventListener('click', closeCalendarModal);
+  }
+
+  if (customCalendarModal) {
+    customCalendarModal.addEventListener('click', (e) => {
+      if (e.target === customCalendarModal) {
+        closeCalendarModal();
+      }
+    });
+  }
+
+  // Quick Date Filter Presets
+  const presetButtons = document.querySelectorAll('.preset-btn');
+  presetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      presetButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const preset = btn.dataset.preset;
+      const now = new Date();
+      const formatYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      if (preset === 'all') {
+        filterStartDateInput.value = '';
+        filterEndDateInput.value = '';
+      } else if (preset === 'today') {
+        const todayStr = formatYMD(now);
+        filterStartDateInput.value = todayStr;
+        filterEndDateInput.value = todayStr;
+      } else if (preset === 'this-week') {
+        const dayOfWeek = now.getDay();
+        const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + diffToMonday);
+        filterStartDateInput.value = formatYMD(monday);
+        filterEndDateInput.value = formatYMD(now);
+      } else if (preset === 'this-month') {
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        filterStartDateInput.value = formatYMD(firstOfMonth);
+        filterEndDateInput.value = formatYMD(now);
+      }
+
+      render();
+    });
   });
 
   // Table row actions using Event Delegation
@@ -792,10 +1120,8 @@ function setupEventListeners() {
 
   // Filter & Search Controls
   searchInput.addEventListener('input', render);
-  filterCategorySelect.addEventListener('change', render);
   filterStartDateInput.addEventListener('change', render);
   filterEndDateInput.addEventListener('change', render);
-  sortBySelect.addEventListener('change', render);
 
   // Reset Filters Button
   resetFiltersBtn.addEventListener('click', resetFilters);

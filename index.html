@@ -133,12 +133,18 @@
 
             <div class="form-group">
               <label for="expense-date">Date <span class="required">*</span></label>
-              <input 
-                type="date" 
-                id="expense-date" 
-                name="date" 
-                required
-              >
+              <div class="custom-date-container">
+                <input 
+                  type="text" 
+                  id="expense-date" 
+                  name="date" 
+                  class="custom-date-input" 
+                  placeholder="YYYY-MM-DD" 
+                  readonly 
+                  required
+                >
+                <button type="button" class="calendar-btn" aria-label="Choose date">📅</button>
+              </div>
               <small class="error-msg" id="date-error"></small>
             </div>
 
@@ -173,40 +179,89 @@
             <!-- Filter by Category -->
             <div class="filter-item">
               <label for="filter-category">Filter Category</label>
-              <select id="filter-category">
-                <option value="all">All Categories</option>
-                <option value="Food & Dining">Food & Dining</option>
-                <option value="Transportation">Transportation</option>
-                <option value="Housing & Utilities">Housing & Utilities</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Healthcare">Healthcare</option>
-                <option value="Shopping">Shopping</option>
-                <option value="Other">Other</option>
-              </select>
+              <div class="custom-select-wrapper" id="wrapper-filter-category">
+                <button type="button" class="custom-select-trigger" id="trigger-filter-category" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="selected-text" id="selected-filter-category-text">All Categories</span>
+                  <span class="chevron-icon">▾</span>
+                </button>
+                <div class="custom-options-menu" id="menu-filter-category" role="listbox">
+                  <!-- Dynamically populated -->
+                </div>
+                <select id="filter-category" class="hidden-select" tabindex="-1">
+                  <option value="all">All Categories</option>
+                  <option value="Food & Dining">Food & Dining</option>
+                  <option value="Transportation">Transportation</option>
+                  <option value="Housing & Utilities">Housing & Utilities</option>
+                  <option value="Entertainment">Entertainment</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Shopping">Shopping</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
             </div>
 
             <!-- Date From -->
             <div class="filter-item">
               <label for="filter-start-date">From Date</label>
-              <input type="date" id="filter-start-date">
+              <div class="custom-date-container">
+                <input 
+                  type="text" 
+                  id="filter-start-date" 
+                  class="custom-date-input" 
+                  placeholder="YYYY-MM-DD" 
+                  readonly
+                >
+                <button type="button" class="calendar-btn" aria-label="Choose start date">📅</button>
+              </div>
             </div>
 
             <!-- Date To -->
             <div class="filter-item">
               <label for="filter-end-date">To Date</label>
-              <input type="date" id="filter-end-date">
+              <div class="custom-date-container">
+                <input 
+                  type="text" 
+                  id="filter-end-date" 
+                  class="custom-date-input" 
+                  placeholder="YYYY-MM-DD" 
+                  readonly
+                >
+                <button type="button" class="calendar-btn" aria-label="Choose end date">📅</button>
+              </div>
             </div>
 
             <!-- Sort By -->
             <div class="filter-item sort-item">
               <label for="sort-by">Sort By</label>
-              <select id="sort-by">
-                <option value="date-desc">Date: Newest First</option>
-                <option value="date-asc">Date: Oldest First</option>
-                <option value="amount-desc">Amount: Highest First</option>
-                <option value="amount-asc">Amount: Lowest First</option>
-                <option value="title-asc">Title: A to Z</option>
-              </select>
+              <div class="custom-select-wrapper" id="wrapper-sort-by">
+                <button type="button" class="custom-select-trigger" id="trigger-sort-by" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="selected-text" id="selected-sort-by-text">Date: Newest First</span>
+                  <span class="chevron-icon">▾</span>
+                </button>
+                <div class="custom-options-menu" id="menu-sort-by" role="listbox">
+                  <div class="custom-option selected" data-value="date-desc">Date: Newest First</div>
+                  <div class="custom-option" data-value="date-asc">Date: Oldest First</div>
+                  <div class="custom-option" data-value="amount-desc">Amount: Highest First</div>
+                  <div class="custom-option" data-value="amount-asc">Amount: Lowest First</div>
+                  <div class="custom-option" data-value="title-asc">Title: A to Z</div>
+                </div>
+                <select id="sort-by" class="hidden-select" tabindex="-1">
+                  <option value="date-desc">Date: Newest First</option>
+                  <option value="date-asc">Date: Oldest First</option>
+                  <option value="amount-desc">Amount: Highest First</option>
+                  <option value="amount-asc">Amount: Lowest First</option>
+                  <option value="title-asc">Title: A to Z</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Quick Date Presets -->
+            <div class="quick-date-presets">
+              <span class="quick-preset-title">Quick Dates:</span>
+              <button type="button" class="preset-btn active" data-preset="all">All Dates</button>
+              <button type="button" class="preset-btn" data-preset="today">Today</button>
+              <button type="button" class="preset-btn" data-preset="this-week">This Week</button>
+              <button type="button" class="preset-btn" data-preset="this-month">This Month</button>
             </div>
           </div>
         </div>
@@ -255,6 +310,28 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- Global Custom Calendar Modal (100% Mobile Responsive) -->
+  <div id="custom-calendar-modal" class="calendar-modal-backdrop" style="display: none;">
+    <div class="calendar-modal-content" role="dialog" aria-modal="true" aria-label="Select Date">
+      <div class="cal-header">
+        <button type="button" id="cal-prev-month" class="cal-nav-btn" aria-label="Previous month">◀</button>
+        <div id="cal-month-year" class="cal-month-year">November 2026</div>
+        <button type="button" id="cal-next-month" class="cal-nav-btn" aria-label="Next month">▶</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+      </div>
+      <div id="cal-days-grid" class="cal-days-grid">
+        <!-- Days generated dynamically -->
+      </div>
+      <div class="cal-footer">
+        <button type="button" id="cal-today-btn" class="btn btn-sm btn-outline">Today</button>
+        <button type="button" id="cal-clear-btn" class="btn btn-sm btn-outline">Clear</button>
+        <button type="button" id="cal-close-btn" class="btn btn-sm btn-primary">Done</button>
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>
