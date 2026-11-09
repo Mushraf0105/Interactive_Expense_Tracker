@@ -187,6 +187,78 @@ body {
   color: var(--text-light);
 }
 
+/* Category Breakdown Card */
+.category-breakdown-card {
+  padding: 18px 22px;
+  margin-bottom: 24px;
+}
+
+.category-breakdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-breakdown-header h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.breakdown-subtitle {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+}
+
+.progress-bar-container {
+  height: 12px;
+  border-radius: 6px;
+  background-color: #f1f5f9;
+  display: flex;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.progress-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.category-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.825rem;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.legend-name {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.legend-pct {
+  color: var(--text-light);
+  font-size: 0.775rem;
+}
+
 /* Main Layout */
 .main-layout {
   display: grid;
@@ -382,6 +454,13 @@ select.input-error {
   gap: 10px;
 }
 
+.listing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .count-badge {
   background: #f1f5f9;
   color: var(--text-muted);
@@ -553,10 +632,15 @@ select.input-error {
   font-size: 0.9rem;
 }
 
-/* Responsive Breakpoints */
-@media (max-width: 968px) {
+/* ==========================================================================
+   Responsive Breakpoints & Mobile Enhancements
+   ========================================================================== */
+
+/* Tablet & Smaller Laptops */
+@media (max-width: 992px) {
   .main-layout {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
 
   .form-section {
@@ -566,35 +650,235 @@ select.input-error {
   .list-section {
     order: 2;
   }
+
+  .summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-@media (max-width: 600px) {
+/* Medium Tablets & Large Phones */
+@media (max-width: 768px) {
   body {
-    padding: 16px 10px;
-  }
-
-  .header-brand h1 {
-    font-size: 1.45rem;
+    padding: 14px 10px;
   }
 
   .summary-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
+  .summary-card .card-icon {
+    width: 46px;
+    height: 46px;
+    font-size: 1.6rem;
+  }
+
+  .card-info h2 {
+    font-size: 1.45rem;
   }
 
   .filter-controls-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  /* Prevent automatic zoom on iOS Safari when tapping inputs */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+}
+
+/* Small Screens & Mobile Phones (Card Transformation for Table) */
+@media (max-width: 640px) {
+  body {
+    padding: 10px 8px;
+  }
+
+  .app-header {
+    margin-bottom: 18px;
+  }
+
+  .header-brand {
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.6rem;
+  }
+
+  .header-brand h1 {
+    font-size: 1.35rem;
+  }
+
+  .header-brand p {
+    font-size: 0.825rem;
   }
 
   .card-header {
     padding: 14px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .card-header h3 {
+    font-size: 1.05rem;
+  }
+
+  .listing-title-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .listing-header-actions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .listing-header-actions .btn {
+    flex: 1;
+    font-size: 0.8rem;
+    padding: 8px 10px;
+    text-align: center;
+    justify-content: center;
   }
 
   #expense-form {
     padding: 16px;
   }
 
-  .expenses-table th,
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+  }
+
+  .filter-controls-grid {
+    grid-template-columns: 1fr;
+    padding: 14px 16px;
+  }
+
+  .category-breakdown-card {
+    padding: 14px 16px;
+  }
+
+  .category-legend {
+    gap: 8px 12px;
+  }
+
+  .legend-item {
+    font-size: 0.775rem;
+  }
+
+  /* Table transformed to Card-based list for seamless mobile view */
+  .table-container {
+    max-height: none;
+    overflow-x: visible;
+    padding: 10px;
+  }
+
+  .expenses-table {
+    display: block;
+    width: 100%;
+  }
+
+  .expenses-table thead {
+    display: none; /* Hide standard tabular header on mobile */
+  }
+
+  .expenses-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .expenses-table tbody tr {
+    display: block;
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .expenses-table tbody tr:hover {
+    background: #ffffff;
+    border-color: var(--border-focus);
+    box-shadow: var(--shadow-md);
+  }
+
   .expenses-table td {
-    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid #f8fafc;
+    text-align: right;
+    font-size: 0.9rem;
+    gap: 10px;
+  }
+
+  .expenses-table td::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  .expenses-table td.expense-amount-cell {
+    font-size: 1.1rem;
+    color: var(--color-primary);
+  }
+
+  .expenses-table td:last-child {
+    border-bottom: none;
+    padding-top: 10px;
+    margin-top: 6px;
+    border-top: 1px dashed var(--border-color);
+    justify-content: stretch;
+  }
+
+  .expenses-table td:last-child::before {
+    display: none;
+  }
+
+  .row-actions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .row-actions .action-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 12px;
+    font-size: 0.85rem;
+    min-height: 42px;
   }
 }
+

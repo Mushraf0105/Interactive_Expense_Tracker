@@ -52,6 +52,20 @@
       </div>
     </section>
 
+    <!-- Visual Category Spending Breakdown -->
+    <section class="card category-breakdown-card" aria-label="Category Spending Breakdown">
+      <div class="category-breakdown-header">
+        <h4>Category Spending Breakdown</h4>
+        <span class="breakdown-subtitle" id="breakdown-subtitle">Distribution across recorded expenses</span>
+      </div>
+      <div class="progress-bar-container" id="category-progress-bar">
+        <!-- Colored segments injected dynamically by script.js -->
+      </div>
+      <div class="category-legend" id="category-legend">
+        <!-- Category tags injected dynamically by script.js -->
+      </div>
+    </section>
+
     <!-- Main Content Layout -->
     <main class="main-layout">
       <!-- Left Column: Add / Edit Form -->
@@ -195,9 +209,14 @@
               <h3>Expense Records</h3>
               <span class="count-badge" id="listing-count-badge">0 items</span>
             </div>
-            <button id="clear-all-btn" class="btn btn-sm btn-danger-outline" title="Clear all stored expenses">
-              Clear All Data
-            </button>
+            <div class="listing-header-actions">
+              <button id="export-csv-btn" class="btn btn-sm btn-outline" title="Export displayed expenses to CSV">
+                📥 Export CSV
+              </button>
+              <button id="clear-all-btn" class="btn btn-sm btn-danger-outline" title="Clear all stored expenses">
+                Clear All Data
+              </button>
+            </div>
           </div>
 
           <!-- Expenses List Container -->

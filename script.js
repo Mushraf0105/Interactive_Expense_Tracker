@@ -77,6 +77,21 @@ const filteredCountEl = document.getElementById('filtered-count');
 const topCategoryNameEl = document.getElementById('top-category-name');
 const topCategoryAmountEl = document.getElementById('top-category-amount');
 
+// Category Breakdown Elements
+const categoryProgressBar = document.getElementById('category-progress-bar');
+const categoryLegend = document.getElementById('category-legend');
+
+// Category Colors for Visual Summary
+const CATEGORY_COLORS = {
+  'Food & Dining': '#f97316',
+  'Transportation': '#0284c7',
+  'Housing & Utilities': '#eab308',
+  'Entertainment': '#a855f7',
+  'Healthcare': '#ec4899',
+  'Shopping': '#14b8a6',
+  'Other': '#64748b'
+};
+
 // Filter & Sort Elements
 const searchInput = document.getElementById('search-input');
 const filterCategorySelect = document.getElementById('filter-category');
@@ -92,6 +107,7 @@ const emptyState = document.getElementById('empty-state');
 const emptyStateMessage = document.getElementById('empty-state-message');
 const expensesTable = document.getElementById('expenses-table');
 const clearAllBtn = document.getElementById('clear-all-btn');
+const exportCsvBtn = document.getElementById('export-csv-btn');
 
 // ==========================================================================
 // 3. LocalStorage Persistence
@@ -322,6 +338,7 @@ function updateSummaryCards(filteredList) {
   if (expenses.length === 0) {
     topCategoryNameEl.textContent = '—';
     topCategoryAmountEl.textContent = '₹0.00 spent';
+    updateCategoryBreakdown([]);
     return;
   }
 
@@ -344,6 +361,52 @@ function updateSummaryCards(filteredList) {
 
   topCategoryNameEl.textContent = topCategory;
   topCategoryAmountEl.textContent = `${formatCurrency(topAmount)} spent`;
+
+  // Update Category Spending Breakdown
+  updateCategoryBreakdown(categoryTotals, overallTotal);
+}
+
+/**
+ * Updates the visual category breakdown bar and legend.
+ */
+function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
+  if (!categoryProgressBar || !categoryLegend) return;
+
+  categoryProgressBar.innerHTML = '';
+  categoryLegend.innerHTML = '';
+
+  if (totalAmount <= 0 || Object.keys(categoryTotals).length === 0) {
+    categoryProgressBar.innerHTML = '<div style="width: 100%; background: #e2e8f0; height: 100%;"></div>';
+    categoryLegend.innerHTML = '<span class="breakdown-subtitle">No spending data to visualize</span>';
+    return;
+  }
+
+  // Sort categories by expenditure (descending)
+  const sorted = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+
+  sorted.forEach(([cat, amt]) => {
+    const pct = ((amt / totalAmount) * 100).toFixed(1);
+    const color = CATEGORY_COLORS[cat] || '#64748b';
+
+    // Segment
+    const segment = document.createElement('div');
+    segment.className = 'progress-segment';
+    segment.style.width = `${pct}%`;
+    segment.style.backgroundColor = color;
+    segment.title = `${cat}: ${formatCurrency(amt)} (${pct}%)`;
+    categoryProgressBar.appendChild(segment);
+
+    // Legend item
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `
+      <span class="legend-dot" style="background-color: ${color}"></span>
+      <span class="legend-name">${escapeHtml(cat)}</span>
+      <span>${formatCurrency(amt)}</span>
+      <span class="legend-pct">(${pct}%)</span>
+    `;
+    categoryLegend.appendChild(item);
+  });
 }
 
 // ==========================================================================
@@ -382,7 +445,7 @@ function render() {
   expensesTable.style.display = 'table';
   emptyState.style.display = 'none';
 
-  // Render rows dynamically
+  // Render rows dynamically with mobile-responsive data-label attributes
   visibleExpenses.forEach(item => {
     const row = document.createElement('tr');
     row.dataset.id = item.id;
@@ -390,15 +453,15 @@ function render() {
     const catBadgeClass = getCategoryClass(item.category);
 
     row.innerHTML = `
-      <td class="expense-date-cell">${formatDate(item.date)}</td>
-      <td class="expense-title-cell">${escapeHtml(item.title)}</td>
-      <td>
+      <td class="expense-date-cell" data-label="Date">${formatDate(item.date)}</td>
+      <td class="expense-title-cell" data-label="Title">${escapeHtml(item.title)}</td>
+      <td data-label="Category">
         <span class="category-pill ${catBadgeClass}">
           ${escapeHtml(item.category)}
         </span>
       </td>
-      <td class="expense-amount-cell text-right">${formatCurrency(item.amount)}</td>
-      <td class="text-center">
+      <td class="expense-amount-cell text-right" data-label="Amount">${formatCurrency(item.amount)}</td>
+      <td class="text-center" data-label="Actions">
         <div class="row-actions">
           <button class="action-btn edit-action" data-id="${item.id}" title="Edit expense">
             ✏️ Edit
@@ -582,6 +645,37 @@ function handleClearAll() {
   }
 }
 
+/**
+ * Exports currently filtered expenses into a downloadable CSV file.
+ */
+function handleExportCSV() {
+  const visible = getFilteredAndSortedExpenses();
+  if (visible.length === 0) {
+    alert('No expenses to export.');
+    return;
+  }
+
+  const headers = ['ID', 'Date', 'Title', 'Category', 'Amount_INR'];
+  const rows = visible.map(item => [
+    `"${item.id}"`,
+    `"${item.date}"`,
+    `"${item.title.replace(/"/g, '""')}"`,
+    `"${item.category}"`,
+    item.amount.toFixed(2)
+  ]);
+
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `expenses_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // ==========================================================================
 // 10. Event Listeners Registration
 // ==========================================================================
@@ -592,6 +686,13 @@ function setupEventListeners() {
 
   // Cancel edit button
   cancelBtn.addEventListener('click', resetFormState);
+
+  // Keyboard shortcut: Escape cancels edit mode
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isEditing) {
+      resetFormState();
+    }
+  });
 
   // Real-time input error removal
   expenseTitleInput.addEventListener('input', () => {
@@ -645,6 +746,11 @@ function setupEventListeners() {
 
   // Reset Filters Button
   resetFiltersBtn.addEventListener('click', resetFilters);
+
+  // Export to CSV Button
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', handleExportCSV);
+  }
 
   // Clear All Data Button
   clearAllBtn.addEventListener('click', handleClearAll);
