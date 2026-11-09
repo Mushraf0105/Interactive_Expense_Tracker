@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Expense Tracker</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="logo-icon">💰</div>
+        <div>
+          <h1>Expense Tracker</h1>
+          <p>Manage, categorize, and monitor your personal spending</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Spending Overview Cards -->
+    <section class="summary-grid" aria-label="Spending Summary">
+      <div class="summary-card total-card">
+        <div class="card-icon">💳</div>
+        <div class="card-info">
+          <span class="card-label">Total Expenses</span>
+          <h2 id="total-amount">$0.00</h2>
+          <span class="card-subtext" id="total-count">0 transactions recorded</span>
+        </div>
+      </div>
+
+      <div class="summary-card filtered-card">
+        <div class="card-icon">🔍</div>
+        <div class="card-info">
+          <span class="card-label">Filtered Total</span>
+          <h2 id="filtered-amount">$0.00</h2>
+          <span class="card-subtext" id="filtered-count">0 items matching</span>
+        </div>
+      </div>
+
+      <div class="summary-card top-category-card">
+        <div class="card-icon">📊</div>
+        <div class="card-info">
+          <span class="card-label">Top Category</span>
+          <h2 id="top-category-name">—</h2>
+          <span class="card-subtext" id="top-category-amount">$0.00 spent</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Layout -->
+    <main class="main-layout">
+      <!-- Left Column: Add / Edit Form -->
+      <aside class="form-section">
+        <div class="card">
+          <div class="card-header">
+            <h3 id="form-heading">Add New Expense</h3>
+            <span id="edit-badge" class="badge edit-mode-badge" style="display: none;">Editing</span>
+          </div>
+
+          <form id="expense-form" novalidate>
+            <input type="hidden" id="expense-id">
+
+            <div class="form-group">
+              <label for="expense-title">Title / Description <span class="required">*</span></label>
+              <input 
+                type="text" 
+                id="expense-title" 
+                name="title" 
+                placeholder="e.g., Grocery shopping, Netflix" 
+                required 
+                maxlength="60"
+                autocomplete="off"
+              >
+              <small class="error-msg" id="title-error"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="expense-amount">Amount ($) <span class="required">*</span></label>
+              <input 
+                type="number" 
+                id="expense-amount" 
+                name="amount" 
+                placeholder="0.00" 
+                step="0.01" 
+                min="0.01" 
+                required
+              >
+              <small class="error-msg" id="amount-error"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="expense-category">Category <span class="required">*</span></label>
+              <select id="expense-category" name="category" required>
+                <option value="" disabled selected>Select a category</option>
+                <option value="Food & Dining">🍔 Food & Dining</option>
+                <option value="Transportation">🚗 Transportation</option>
+                <option value="Housing & Utilities">💡 Housing & Utilities</option>
+                <option value="Entertainment">🎬 Entertainment</option>
+                <option value="Healthcare">💊 Healthcare</option>
+                <option value="Shopping">🛍️ Shopping</option>
+                <option value="Other">📦 Other</option>
+              </select>
+              <small class="error-msg" id="category-error"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="expense-date">Date <span class="required">*</span></label>
+              <input 
+                type="date" 
+                id="expense-date" 
+                name="date" 
+                required
+              >
+              <small class="error-msg" id="date-error"></small>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="submit-btn" class="btn btn-primary">
+                <span class="btn-icon">➕</span> <span id="submit-btn-text">Add Expense</span>
+              </button>
+              <button type="button" id="cancel-btn" class="btn btn-secondary" style="display: none;">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </aside>
+
+      <!-- Right Column: Filters and Expense List -->
+      <section class="list-section">
+        <!-- Controls & Filters Card -->
+        <div class="card filter-card">
+          <div class="card-header">
+            <h3>Filter & Sort Expenses</h3>
+            <button id="reset-filters-btn" class="btn btn-sm btn-outline">Reset Filters</button>
+          </div>
+
+          <div class="filter-controls-grid">
+            <!-- Search -->
+            <div class="filter-item">
+              <label for="search-input">Search Title</label>
+              <input type="text" id="search-input" placeholder="Search by name...">
+            </div>
+
+            <!-- Filter by Category -->
+            <div class="filter-item">
+              <label for="filter-category">Filter Category</label>
+              <select id="filter-category">
+                <option value="all">All Categories</option>
+                <option value="Food & Dining">Food & Dining</option>
+                <option value="Transportation">Transportation</option>
+                <option value="Housing & Utilities">Housing & Utilities</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Shopping">Shopping</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <!-- Date From -->
+            <div class="filter-item">
+              <label for="filter-start-date">From Date</label>
+              <input type="date" id="filter-start-date">
+            </div>
+
+            <!-- Date To -->
+            <div class="filter-item">
+              <label for="filter-end-date">To Date</label>
+              <input type="date" id="filter-end-date">
+            </div>
+
+            <!-- Sort By -->
+            <div class="filter-item sort-item">
+              <label for="sort-by">Sort By</label>
+              <select id="sort-by">
+                <option value="date-desc">Date: Newest First</option>
+                <option value="date-asc">Date: Oldest First</option>
+                <option value="amount-desc">Amount: Highest First</option>
+                <option value="amount-asc">Amount: Lowest First</option>
+                <option value="title-asc">Title: A to Z</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expense Listing Card -->
+        <div class="card listing-card">
+          <div class="card-header">
+            <div class="listing-title-wrap">
+              <h3>Expense Records</h3>
+              <span class="count-badge" id="listing-count-badge">0 items</span>
+            </div>
+            <button id="clear-all-btn" class="btn btn-sm btn-danger-outline" title="Clear all stored expenses">
+              Clear All Data
+            </button>
+          </div>
+
+          <!-- Expenses List Container -->
+          <div class="table-container">
+            <table class="expenses-table" id="expenses-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th class="text-right">Amount</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expense-list-body">
+                <!-- Dynamic rows injected here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div id="empty-state" class="empty-state" style="display: none;">
+            <div class="empty-icon">📂</div>
+            <h4>No expenses found</h4>
+            <p id="empty-state-message">Add your first expense or adjust your filter criteria.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
