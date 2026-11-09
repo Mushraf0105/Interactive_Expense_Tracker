@@ -21,17 +21,18 @@ This project was developed as a hands-on web application to master core front-en
 
 | Deliverable | Description |
 | :--- | :--- |
-| **Expense Entry Form** | Add new expenses with Title, Amount, Category, and Date. Automatically sets today's date. |
+| **Expense Entry Form** | Add new expenses with Title, Amount (₹), Category (freeform text input with suggestions), and Date. Automatically sets today's date. |
 | **Input Validation** | Verifies non-empty title (min 2 chars), positive amount (> ₹0.00), valid category, and valid date with real-time error messaging. |
-| **Expense Listing** | Clean, styled table showing date, title, color-coded category badges, formatted currency, and action buttons. |
-| **Edit Functionality** | Loads existing expense data into the form with an "Editing" status indicator and a "Cancel" option. |
+| **Expense Listing** | Clean, styled table on desktop that transforms into **individual mobile cards** (`≤ 640px`) with 44px tap targets. |
+| **Edit Functionality** | Loads existing expense data into the form with an "Editing" status indicator and a "Cancel" option (<kbd>Esc</kbd> shortcut). |
 | **Delete Functionality** | Removes an expense with a confirmation prompt and immediate UI/Storage update. |
-| **Category Filtering** | Filter transactions by categories: Food & Dining, Transportation, Housing & Utilities, Entertainment, Healthcare, Shopping, Other. |
-| **Date Range Filtering** | Filter records between specific **From Date** and **To Date** intervals. |
-| **Search & Sort** | Real-time title search and multi-option sorting (Newest/Oldest Date, Highest/Lowest Amount, A–Z Title). |
-| **Spending Summaries** | Instant dashboard cards for **Total Expenses**, **Filtered Total**, and the **Top Spending Category**. |
-| **LocalStorage Persistence** | Retains all expense data across browser sessions and page refreshes. |
-| **Responsive UI** | Seamless layout on desktop screens, tablets, and smartphones. |
+| **Category Filtering** | Custom mobile-responsive dropdown that dynamically syncs with all user-entered categories with zero card overflow. |
+| **Date Range Filtering** | Custom mobile-responsive Calendar Modal (`From Date` / `To Date`) + one-tap Quick Date Presets (*Today, This Week, This Month*). |
+| **Search & Sort** | Real-time title search and custom mobile dropdown sorting (Newest/Oldest Date, Highest/Lowest Amount, A–Z Title). |
+| **Spending Summaries** | Instant dashboard cards for **Total Expenses**, **Filtered Total**, **Top Category**, and an interactive **Category Breakdown** bar. |
+| **LocalStorage Persistence** | Retains all expense data across browser sessions and page refreshes (with starter INR dataset). |
+| **Data Export** | Download your filtered or complete expense history as a `.csv` spreadsheet file with one click. |
+| **Responsive UI** | 100% fluid, mobile-first design with custom dropdowns and date pickers that never overflow on narrow screens. |
 
 ---
 

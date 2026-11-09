@@ -936,12 +936,40 @@ function setupEventListeners() {
   expenseCategoryInput.addEventListener('input', clearCategoryError);
   expenseCategoryInput.addEventListener('change', clearCategoryError);
 
+  // Smart toggle custom dropdown with drop-up detection
+  function toggleCustomDropdown(wrapper) {
+    const isCurrentlyOpen = wrapper.classList.contains('open');
+
+    // Close all open dropdowns first
+    document.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
+      w.classList.remove('open', 'drop-up');
+    });
+
+    if (!isCurrentlyOpen) {
+      const rect = wrapper.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const estimatedMenuHeight = 220;
+
+      if (spaceBelow < estimatedMenuHeight && rect.top > estimatedMenuHeight) {
+        wrapper.classList.add('drop-up');
+      } else {
+        wrapper.classList.remove('drop-up');
+      }
+
+      wrapper.classList.add('open');
+
+      const selectedOpt = wrapper.querySelector('.custom-option.selected');
+      if (selectedOpt) {
+        selectedOpt.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }
+
   // Custom Dropdown: Filter Category
   if (triggerFilterCategory && wrapperFilterCategory) {
     triggerFilterCategory.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (wrapperSortBy) wrapperSortBy.classList.remove('open');
-      wrapperFilterCategory.classList.toggle('open');
+      toggleCustomDropdown(wrapperFilterCategory);
     });
   }
 
@@ -954,7 +982,7 @@ function setupEventListeners() {
       if (selectedFilterCategoryText) {
         selectedFilterCategoryText.textContent = option.textContent.replace('✓', '').trim();
       }
-      wrapperFilterCategory.classList.remove('open');
+      wrapperFilterCategory.classList.remove('open', 'drop-up');
       render();
     });
   }
@@ -963,8 +991,7 @@ function setupEventListeners() {
   if (triggerSortBy && wrapperSortBy) {
     triggerSortBy.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (wrapperFilterCategory) wrapperFilterCategory.classList.remove('open');
-      wrapperSortBy.classList.toggle('open');
+      toggleCustomDropdown(wrapperSortBy);
     });
   }
 
@@ -975,7 +1002,7 @@ function setupEventListeners() {
       const val = option.dataset.value;
       if (sortBySelect) sortBySelect.value = val;
       updateSortByDisplay();
-      wrapperSortBy.classList.remove('open');
+      wrapperSortBy.classList.remove('open', 'drop-up');
       render();
     });
   }
@@ -983,10 +1010,10 @@ function setupEventListeners() {
   // Click outside closes custom dropdowns
   document.addEventListener('click', (e) => {
     if (wrapperFilterCategory && !wrapperFilterCategory.contains(e.target)) {
-      wrapperFilterCategory.classList.remove('open');
+      wrapperFilterCategory.classList.remove('open', 'drop-up');
     }
     if (wrapperSortBy && !wrapperSortBy.contains(e.target)) {
-      wrapperSortBy.classList.remove('open');
+      wrapperSortBy.classList.remove('open', 'drop-up');
     }
   });
 

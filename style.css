@@ -273,7 +273,18 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.listing-card {
   overflow: hidden;
+}
+
+.filter-card {
+  margin-bottom: 24px;
+  overflow: visible !important;
+  position: relative;
+  z-index: 30;
 }
 
 .card-header {
@@ -423,22 +434,20 @@ select.input-error {
 }
 
 /* Filter Controls Grid */
-.filter-card {
-  margin-bottom: 24px;
-}
-
 .filter-controls-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
   padding: 18px 22px;
   background-color: #fafbfc;
+  overflow: visible !important;
 }
 
 .filter-item {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  position: relative;
 }
 
 .filter-item label {
@@ -452,6 +461,10 @@ select.input-error {
   position: relative;
   width: 100%;
   box-sizing: border-box;
+}
+
+.custom-select-wrapper.open {
+  z-index: 500;
 }
 
 .custom-select-trigger {
@@ -505,15 +518,40 @@ select.input-error {
   right: 0;
   width: 100%;
   max-width: 100%;
-  max-height: 220px;
+  max-height: 200px;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  z-index: 150;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  z-index: 999;
   display: none;
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+/* Drop-up position when space below is tight */
+.custom-select-wrapper.drop-up .custom-options-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.16);
+}
+
+.custom-options-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-options-menu::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.custom-options-menu::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
 }
 
 .custom-select-wrapper.open .custom-options-menu {
