@@ -3,6 +3,9 @@
 // ==========================================================================
 
 const STORAGE_KEY = 'interactive_expenses_inr_data';
+const THEME_KEY = 'interactive_expenses_theme';
+const BUDGET_KEY = 'interactive_expenses_monthly_budget';
+const DEFAULT_BUDGET = 25000.00;
 
 // Default initial expenses provided if localStorage is empty
 const DEFAULT_EXPENSES = [
@@ -38,12 +41,18 @@ const DEFAULT_EXPENSES = [
 
 // Application State
 let expenses = loadExpenses();
+let monthlyBudget = loadMonthlyBudget();
 let isEditing = false;
 let currentEditId = null;
 
 // ==========================================================================
 // 2. DOM Elements
 // ==========================================================================
+
+// Theme Toggle Elements
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const themeIcon = document.getElementById('theme-icon');
+const themeLabel = document.getElementById('theme-label');
 
 // Form Elements
 const expenseForm = document.getElementById('expense-form');
@@ -74,6 +83,30 @@ const filteredAmountEl = document.getElementById('filtered-amount');
 const filteredCountEl = document.getElementById('filtered-count');
 const topCategoryNameEl = document.getElementById('top-category-name');
 const topCategoryAmountEl = document.getElementById('top-category-amount');
+
+// Monthly Budget Card Elements
+const budgetRemainingAmountEl = document.getElementById('budget-remaining-amount');
+const budgetStatusSubtextEl = document.getElementById('budget-status-subtext');
+const editBudgetBtn = document.getElementById('edit-budget-btn');
+
+// Live Monthly Budget Banner Elements
+const budgetAlertCard = document.getElementById('budget-alert-card');
+const budgetStatusIcon = document.getElementById('budget-status-icon');
+const budgetMonthHeading = document.getElementById('budget-month-heading');
+const budgetStatusMessage = document.getElementById('budget-status-message');
+const budgetPctBadge = document.getElementById('budget-pct-badge');
+const budgetProgressBar = document.getElementById('budget-progress-bar');
+const budgetTargetDisplay = document.getElementById('budget-target-display');
+const budgetSpentDisplay = document.getElementById('budget-spent-display');
+const budgetRemainingDisplay = document.getElementById('budget-remaining-display');
+
+// Budget Target Modal Elements
+const budgetModal = document.getElementById('budget-modal');
+const budgetForm = document.getElementById('budget-form');
+const budgetInput = document.getElementById('budget-input');
+const budgetError = document.getElementById('budget-error');
+const cancelBudgetBtn = document.getElementById('cancel-budget-btn');
+const closeBudgetModalBtn = document.getElementById('close-budget-modal-btn');
 
 // Category Breakdown Elements
 const categoryProgressBar = document.getElementById('category-progress-bar');
@@ -126,10 +159,10 @@ const emptyState = document.getElementById('empty-state');
 const emptyStateMessage = document.getElementById('empty-state-message');
 const expensesTable = document.getElementById('expenses-table');
 const clearAllBtn = document.getElementById('clear-all-btn');
-const exportCsvBtn = document.getElementById('export-csv-btn');
+const exportPdfBtn = document.getElementById('export-pdf-btn');
 
 // ==========================================================================
-// 3. LocalStorage Persistence
+// 3. LocalStorage Persistence & Theme
 // ==========================================================================
 
 /**
@@ -162,6 +195,79 @@ function saveExpenses() {
     console.error('Error saving expenses to LocalStorage:', error);
     alert('Unable to save changes to LocalStorage. Disk may be full.');
   }
+}
+
+/**
+ * Loads monthly budget limit from LocalStorage or returns default.
+ */
+function loadMonthlyBudget() {
+  try {
+    const saved = localStorage.getItem(BUDGET_KEY);
+    if (saved !== null && !isNaN(parseFloat(saved))) {
+      return parseFloat(saved);
+    }
+    return DEFAULT_BUDGET;
+  } catch (e) {
+    return DEFAULT_BUDGET;
+  }
+}
+
+/**
+ * Saves monthly budget limit to LocalStorage.
+ */
+function saveMonthlyBudget(amount) {
+  try {
+    monthlyBudget = amount;
+    localStorage.setItem(BUDGET_KEY, amount.toFixed(2));
+  } catch (e) {
+    console.error('Error saving monthly budget:', e);
+  }
+}
+
+/**
+ * Initializes and manages Theme (Light / Dark mode) with persistence.
+ */
+function initTheme() {
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  if (savedTheme === 'dark' || savedTheme === 'light') {
+    applyTheme(savedTheme, false);
+  } else {
+    // Respect OS preferred color scheme
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(prefersDark ? 'dark' : 'light', false);
+  }
+}
+
+/**
+ * Applies theme attribute to document root and updates button UI.
+ */
+function applyTheme(theme, save = true) {
+  document.documentElement.setAttribute('data-theme', theme);
+  if (save) {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {}
+  }
+  if (themeToggleBtn && themeIcon && themeLabel) {
+    if (theme === 'dark') {
+      themeIcon.textContent = '☀️';
+      themeLabel.textContent = 'Light Mode';
+      themeToggleBtn.setAttribute('title', 'Switch to light theme');
+    } else {
+      themeIcon.textContent = '🌙';
+      themeLabel.textContent = 'Dark Mode';
+      themeToggleBtn.setAttribute('title', 'Switch to dark theme');
+    }
+  }
+}
+
+/**
+ * Toggles between light and dark themes.
+ */
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(newTheme, true);
 }
 
 // ==========================================================================
@@ -400,6 +506,134 @@ function updateSummaryCards(filteredList) {
 
   // Update Category Spending Breakdown
   updateCategoryBreakdown(categoryTotals, overallTotal);
+
+  // Update Monthly Budget Target, Progress Bar & Live Alerts
+  updateBudgetDisplay();
+}
+
+/**
+ * Updates the Monthly Budget card, visual progress bar, and live alert banners.
+ */
+function updateBudgetDisplay() {
+  if (!budgetRemainingAmountEl) return;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthNum = String(now.getMonth() + 1).padStart(2, '0');
+  const currentMonthKey = `${currentYear}-${currentMonthNum}`;
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const currentMonthName = monthNames[now.getMonth()];
+
+  if (budgetMonthHeading) {
+    budgetMonthHeading.textContent = `Monthly Budget Status (${currentMonthName} ${currentYear})`;
+  }
+
+  // Calculate this month's expenditure
+  const thisMonthExpenses = expenses.filter(item => item.date && item.date.startsWith(currentMonthKey));
+  const thisMonthSpent = thisMonthExpenses.reduce((sum, item) => sum + item.amount, 0);
+
+  const remaining = monthlyBudget - thisMonthSpent;
+  const pctUsed = monthlyBudget > 0 ? (thisMonthSpent / monthlyBudget) * 100 : 0;
+
+  // Update Summary Card
+  if (remaining >= 0) {
+    budgetRemainingAmountEl.textContent = formatCurrency(remaining);
+    budgetRemainingAmountEl.classList.remove('over-budget');
+    if (budgetStatusSubtextEl) {
+      budgetStatusSubtextEl.textContent = `Spent ${formatCurrency(thisMonthSpent)} of ${formatCurrency(monthlyBudget)} (${pctUsed.toFixed(1)}%)`;
+    }
+  } else {
+    budgetRemainingAmountEl.textContent = `-${formatCurrency(Math.abs(remaining))}`;
+    budgetRemainingAmountEl.classList.add('over-budget');
+    if (budgetStatusSubtextEl) {
+      budgetStatusSubtextEl.textContent = `Exceeded by ${formatCurrency(Math.abs(remaining))} (${pctUsed.toFixed(1)}%)`;
+    }
+  }
+
+  // Update Alert Card Banner & Progress Bar
+  if (budgetAlertCard) {
+    budgetAlertCard.classList.remove('status-safe', 'status-warning', 'status-danger');
+
+    // Progress bar width clamped to 100%
+    const barWidth = Math.min(Math.max(pctUsed, 0), 100);
+    if (budgetProgressBar) {
+      budgetProgressBar.style.width = `${barWidth.toFixed(1)}%`;
+    }
+
+    if (pctUsed < 75) {
+      budgetAlertCard.classList.add('status-safe');
+      if (budgetStatusIcon) budgetStatusIcon.textContent = '🎯';
+      if (budgetPctBadge) budgetPctBadge.textContent = `${pctUsed.toFixed(1)}% Used`;
+      if (budgetStatusMessage) {
+        budgetStatusMessage.textContent = `On Track: You have ${formatCurrency(remaining)} remaining within your ${formatCurrency(monthlyBudget)} target.`;
+      }
+    } else if (pctUsed < 100) {
+      budgetAlertCard.classList.add('status-warning');
+      if (budgetStatusIcon) budgetStatusIcon.textContent = '⚠️';
+      if (budgetPctBadge) budgetPctBadge.textContent = `${pctUsed.toFixed(1)}% Used`;
+      if (budgetStatusMessage) {
+        budgetStatusMessage.textContent = `Caution: You have utilized ${pctUsed.toFixed(1)}% of your monthly budget. Only ${formatCurrency(remaining)} remaining!`;
+      }
+    } else {
+      budgetAlertCard.classList.add('status-danger');
+      if (budgetStatusIcon) budgetStatusIcon.textContent = '🚨';
+      if (budgetPctBadge) budgetPctBadge.textContent = `${pctUsed.toFixed(1)}% Over Budget`;
+      if (budgetStatusMessage) {
+        budgetStatusMessage.textContent = `Over-Budget Alert! You have exceeded your monthly limit of ${formatCurrency(monthlyBudget)} by ${formatCurrency(Math.abs(remaining))}!`;
+      }
+    }
+
+    // Update bottom metrics row
+    if (budgetTargetDisplay) budgetTargetDisplay.textContent = formatCurrency(monthlyBudget);
+    if (budgetSpentDisplay) budgetSpentDisplay.textContent = formatCurrency(thisMonthSpent);
+    if (budgetRemainingDisplay) {
+      budgetRemainingDisplay.textContent = remaining >= 0 ? formatCurrency(remaining) : `-${formatCurrency(Math.abs(remaining))} (Deficit)`;
+    }
+  }
+}
+
+/**
+ * Opens the Monthly Budget Modal dialog.
+ */
+function openBudgetModal() {
+  if (!budgetModal || !budgetInput) return;
+  budgetInput.value = monthlyBudget.toFixed(0);
+  if (budgetError) budgetError.textContent = '';
+  budgetModal.style.display = 'flex';
+  setTimeout(() => budgetInput.focus(), 50);
+}
+
+/**
+ * Closes the Monthly Budget Modal dialog.
+ */
+function closeBudgetModal() {
+  if (!budgetModal) return;
+  budgetModal.style.display = 'none';
+  if (budgetError) budgetError.textContent = '';
+}
+
+/**
+ * Handles submission of new Monthly Budget target.
+ */
+function handleBudgetSubmit(e) {
+  e.preventDefault();
+  if (!budgetInput) return;
+
+  const rawVal = budgetInput.value.trim();
+  const numVal = parseFloat(rawVal);
+
+  if (isNaN(numVal) || numVal < 100) {
+    if (budgetError) budgetError.textContent = 'Please enter a valid monthly budget (minimum ₹100).';
+    budgetInput.focus();
+    return;
+  }
+
+  saveMonthlyBudget(numVal);
+  closeBudgetModal();
+  updateBudgetDisplay();
 }
 
 /**
@@ -897,30 +1131,347 @@ function handleClearAll() {
 }
 
 /**
- * Exports currently filtered expenses into a downloadable CSV file.
+ * Zero-dependency client-side PDF 1.4 generator.
+ * Produces a multi-page, formatted financial report without any external libraries.
  */
-function handleExportCSV() {
+function generateExpensePDF(expensesList, summary) {
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 36;
+  const contentWidth = pageWidth - (2 * margin);
+
+  const pages = [];
+  let currentPage = null;
+
+  function newPage() {
+    currentPage = {
+      commands: [],
+      pageNumber: pages.length + 1
+    };
+    pages.push(currentPage);
+    return currentPage;
+  }
+
+  function cmd(str) {
+    currentPage.commands.push(str);
+  }
+
+  function drawRect(x, y, w, h, fillRGB = null, strokeRGB = null, lineWidth = 0.5) {
+    let s = '';
+    if (lineWidth) s += `${lineWidth} w\n`;
+    if (fillRGB) s += `${fillRGB[0]} ${fillRGB[1]} ${fillRGB[2]} rg\n`;
+    if (strokeRGB) s += `${strokeRGB[0]} ${strokeRGB[1]} ${strokeRGB[2]} RG\n`;
+    s += `${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re\n`;
+    if (fillRGB && strokeRGB) s += 'B\n';
+    else if (fillRGB) s += 'f\n';
+    else if (strokeRGB) s += 'S\n';
+    cmd(s);
+  }
+
+  function drawLine(x1, y1, x2, y2, strokeRGB = [0.85, 0.88, 0.92], lineWidth = 0.5) {
+    const s = `${lineWidth} w\n${strokeRGB[0]} ${strokeRGB[1]} ${strokeRGB[2]} RG\n${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S\n`;
+    cmd(s);
+  }
+
+  function drawText(text, x, y, font = '/F1', size = 9, rgb = [0.08, 0.12, 0.20]) {
+    const cleanText = String(text == null ? '' : text)
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)');
+    const s = `BT\n${font} ${size} Tf\n${rgb[0]} ${rgb[1]} ${rgb[2]} rg\n1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm\n(${cleanText}) Tj\nET\n`;
+    cmd(s);
+  }
+
+  const helveticaWidths = {
+    ' ': 278, '!': 278, '"': 355, '#': 556, '$': 556, '%': 889, '&': 667, '\'': 191,
+    '(': 333, ')': 333, '*': 389, '+': 584, ',': 278, '-': 333, '.': 278, '/': 278,
+    '0': 556, '1': 556, '2': 556, '3': 556, '4': 556, '5': 556, '6': 556, '7': 556,
+    '8': 556, '9': 556, ':': 278, ';': 278, '<': 584, '=': 584, '>': 584, '?': 556,
+    '@': 1015, 'A': 667, 'B': 667, 'C': 722, 'D': 722, 'E': 667, 'F': 611, 'G': 778,
+    'H': 722, 'I': 278, 'J': 500, 'K': 667, 'L': 556, 'M': 833, 'N': 722, 'O': 778,
+    'P': 667, 'Q': 778, 'R': 722, 'S': 667, 'T': 611, 'U': 722, 'V': 667, 'W': 944,
+    'X': 667, 'Y': 667, 'Z': 611, '[': 278, '\\': 278, ']': 278, '^': 469, '_': 556,
+    '`': 222, 'a': 556, 'b': 556, 'c': 500, 'd': 556, 'e': 556, 'f': 278, 'g': 556,
+    'h': 556, 'i': 222, 'j': 222, 'k': 500, 'l': 222, 'm': 833, 'n': 556, 'o': 556,
+    'p': 556, 'q': 556, 'r': 333, 's': 500, 't': 278, 'u': 556, 'v': 500, 'w': 722,
+    'x': 500, 'y': 500, 'z': 500, '{': 334, '|': 260, '}': 334, '~': 584
+  };
+
+  function getTextWidth(text, size = 9, bold = false) {
+    let w = 0;
+    const str = String(text);
+    for (let i = 0; i < str.length; i++) {
+      let cw = helveticaWidths[str[i]] || 550;
+      if (bold) cw *= 1.08;
+      w += (cw * size) / 1000;
+    }
+    return w;
+  }
+
+  function truncateText(text, maxWidth, size = 9, bold = false) {
+    let str = String(text);
+    if (getTextWidth(str, size, bold) <= maxWidth) return str;
+    while (str.length > 3 && getTextWidth(str + '...', size, bold) > maxWidth) {
+      str = str.slice(0, -1);
+    }
+    return str + '...';
+  }
+
+  newPage();
+
+  function drawPageHeader(isFirstPage) {
+    // Top banner bar
+    drawRect(margin, pageHeight - margin - 40, contentWidth, 40, [0.08, 0.12, 0.22]);
+    drawText('VEDA TECHNOLOGY', margin + 14, pageHeight - margin - 22, '/F2', 12, [1, 1, 1]);
+    drawText('Interactive Expense Tracker - Financial Report', margin + 14, pageHeight - margin - 34, '/F1', 8, [0.75, 0.82, 0.95]);
+
+    const dateStr = summary.exportDate || new Date().toISOString().slice(0, 10);
+    const dateText = `Generated: ${dateStr}`;
+    const dtWidth = getTextWidth(dateText, 8);
+    drawText(dateText, margin + contentWidth - dtWidth - 14, pageHeight - margin - 26, '/F1', 8, [0.85, 0.90, 0.98]);
+
+    let currY = pageHeight - margin - 50;
+
+    if (isFirstPage) {
+      // Summary Metrics Cards (Top of First Page)
+      const cardW = (contentWidth - 18) / 3;
+      const cardH = 46;
+
+      // Card 1: Total Spent
+      drawRect(margin, currY - cardH, cardW, cardH, [0.97, 0.98, 1.0], [0.85, 0.89, 0.95], 0.7);
+      drawText('TOTAL EXPENDITURE', margin + 10, currY - 14, '/F2', 7.5, [0.35, 0.40, 0.50]);
+      drawText(`INR ${summary.totalAmount.toFixed(2)}`, margin + 10, currY - 32, '/F2', 12, [0.10, 0.15, 0.28]);
+      drawText(`${summary.count} transactions recorded`, margin + 10, currY - 42, '/F1', 7, [0.50, 0.55, 0.65]);
+
+      // Card 2: Monthly Budget Status
+      drawRect(margin + cardW + 9, currY - cardH, cardW, cardH, [0.97, 0.98, 1.0], [0.85, 0.89, 0.95], 0.7);
+      drawText('MONTHLY BUDGET TARGET', margin + cardW + 19, currY - 14, '/F2', 7.5, [0.35, 0.40, 0.50]);
+      drawText(`INR ${summary.monthlyBudget.toFixed(2)}`, margin + cardW + 19, currY - 32, '/F2', 12, [0.20, 0.45, 0.25]);
+      const remaining = summary.monthlyBudget - summary.thisMonthSpent;
+      const remText = remaining >= 0 ? `Remaining: INR ${remaining.toFixed(2)}` : `Over Budget: INR ${Math.abs(remaining).toFixed(2)}`;
+      drawText(remText, margin + cardW + 19, currY - 42, '/F1', 7, remaining >= 0 ? [0.20, 0.55, 0.30] : [0.80, 0.20, 0.20]);
+
+      // Card 3: Top Category
+      drawRect(margin + (cardW + 9) * 2, currY - cardH, cardW, cardH, [0.97, 0.98, 1.0], [0.85, 0.89, 0.95], 0.7);
+      drawText('TOP SPENDING CATEGORY', margin + (cardW + 9) * 2 + 10, currY - 14, '/F2', 7.5, [0.35, 0.40, 0.50]);
+      drawText(truncateText(summary.topCategory || 'N/A', cardW - 20, 11, true), margin + (cardW + 9) * 2 + 10, currY - 32, '/F2', 11, [0.55, 0.25, 0.15]);
+      drawText(`INR ${summary.topCategoryAmount.toFixed(2)} spent`, margin + (cardW + 9) * 2 + 10, currY - 42, '/F1', 7, [0.50, 0.55, 0.65]);
+
+      currY -= (cardH + 14);
+    } else {
+      currY -= 6;
+    }
+
+    // Table Header
+    const colWidths = [30, 75, 215, 110, 93];
+    const colX = [
+      margin,
+      margin + 30,
+      margin + 105,
+      margin + 320,
+      margin + 430
+    ];
+
+    drawRect(margin, currY - 20, contentWidth, 20, [0.92, 0.94, 0.98], [0.80, 0.84, 0.90], 0.75);
+    drawText('#', colX[0] + 8, currY - 13, '/F2', 8, [0.20, 0.25, 0.35]);
+    drawText('DATE', colX[1] + 6, currY - 13, '/F2', 8, [0.20, 0.25, 0.35]);
+    drawText('TITLE / DESCRIPTION', colX[2] + 6, currY - 13, '/F2', 8, [0.20, 0.25, 0.35]);
+    drawText('CATEGORY', colX[3] + 6, currY - 13, '/F2', 8, [0.20, 0.25, 0.35]);
+    const amtHeadText = 'AMOUNT (INR)';
+    const amtHeadW = getTextWidth(amtHeadText, 8, true);
+    drawText(amtHeadText, colX[4] + colWidths[4] - amtHeadW - 8, currY - 13, '/F2', 8, [0.20, 0.25, 0.35]);
+
+    currY -= 20;
+    return { currY, colWidths, colX };
+  }
+
+  function drawPageFooter() {
+    const pageNum = currentPage.pageNumber;
+    drawLine(margin, margin + 20, margin + contentWidth, margin + 20, [0.85, 0.88, 0.92], 0.5);
+    drawText('Confidential • Generated by Veda Technology Interactive Expense Tracker', margin, margin + 8, '/F1', 7, [0.55, 0.60, 0.70]);
+    const pStr = `Page ${pageNum}`;
+    const pW = getTextWidth(pStr, 7);
+    drawText(pStr, margin + contentWidth - pW, margin + 8, '/F1', 7, [0.55, 0.60, 0.70]);
+  }
+
+  let layout = drawPageHeader(true);
+  let y = layout.currY;
+  const rowHeight = 20;
+
+  for (let i = 0; i < expensesList.length; i++) {
+    if (y - rowHeight < margin + 40) {
+      drawPageFooter();
+      newPage();
+      layout = drawPageHeader(false);
+      y = layout.currY;
+    }
+
+    const item = expensesList[i];
+    const isAlt = (i % 2 === 1);
+    const rowFill = isAlt ? [0.98, 0.98, 0.99] : [1.0, 1.0, 1.0];
+    drawRect(margin, y - rowHeight, contentWidth, rowHeight, rowFill, null, 0);
+    drawLine(margin, y - rowHeight, margin + contentWidth, y - rowHeight, [0.90, 0.92, 0.95], 0.5);
+
+    // # index
+    drawText(String(i + 1), layout.colX[0] + 8, y - 13, '/F1', 8, [0.45, 0.50, 0.60]);
+    // Date
+    drawText(item.date || '—', layout.colX[1] + 6, y - 13, '/F1', 8, [0.20, 0.25, 0.35]);
+    // Title
+    const truncatedTitle = truncateText(item.title || 'Untitled', layout.colWidths[2] - 12, 8);
+    drawText(truncatedTitle, layout.colX[2] + 6, y - 13, '/F2', 8, [0.10, 0.15, 0.25]);
+    // Category
+    const truncatedCat = truncateText(item.category || 'Other', layout.colWidths[3] - 12, 8);
+    drawText(truncatedCat, layout.colX[3] + 6, y - 13, '/F1', 8, [0.30, 0.35, 0.45]);
+    // Amount
+    const amtStr = Number(item.amount || 0).toFixed(2);
+    const amtW = getTextWidth(amtStr, 8, true);
+    drawText(amtStr, layout.colX[4] + layout.colWidths[4] - amtW - 8, y - 13, '/F2', 8, [0.08, 0.12, 0.22]);
+
+    y -= rowHeight;
+  }
+
+  // Draw Grand Total Row
+  if (y - 24 < margin + 40) {
+    drawPageFooter();
+    newPage();
+    layout = drawPageHeader(false);
+    y = layout.currY;
+  }
+
+  drawRect(margin, y - 22, contentWidth, 22, [0.93, 0.95, 0.99], [0.80, 0.85, 0.92], 0.75);
+  drawText('GRAND TOTAL', layout.colX[2] + 6, y - 14, '/F2', 9, [0.10, 0.15, 0.30]);
+  const grandTotalStr = `INR ${summary.totalAmount.toFixed(2)}`;
+  const gtW = getTextWidth(grandTotalStr, 9, true);
+  drawText(grandTotalStr, layout.colX[4] + layout.colWidths[4] - gtW - 8, y - 14, '/F2', 9, [0.10, 0.15, 0.30]);
+  y -= 22;
+
+  drawPageFooter();
+
+  // Construct PDF 1.4 objects
+  const numPages = pages.length;
+  let nextObjId = 1;
+
+  const catalogId = nextObjId++;
+  const pagesRootId = nextObjId++;
+  const fontRegularId = nextObjId++;
+  const fontBoldId = nextObjId++;
+
+  const pageEntries = [];
+  for (let i = 0; i < numPages; i++) {
+    const pId = nextObjId++;
+    const contentId = nextObjId++;
+    pageEntries.push({ pId, contentId, page: pages[i] });
+  }
+
+  const objects = [];
+
+  objects.push({
+    id: catalogId,
+    content: `<<\n/Type /Catalog\n/Pages ${pagesRootId} 0 R\n>>`
+  });
+
+  const kidsStr = pageEntries.map(e => `${e.pId} 0 R`).join(' ');
+  objects.push({
+    id: pagesRootId,
+    content: `<<\n/Type /Pages\n/Kids [${kidsStr}]\n/Count ${numPages}\n>>`
+  });
+
+  objects.push({
+    id: fontRegularId,
+    content: `<<\n/Type /Font\n/Subtype /Type1\n/BaseFont /Helvetica\n/Encoding /WinAnsiEncoding\n>>`
+  });
+
+  objects.push({
+    id: fontBoldId,
+    content: `<<\n/Type /Font\n/Subtype /Type1\n/BaseFont /Helvetica-Bold\n/Encoding /WinAnsiEncoding\n>>`
+  });
+
+  const encoder = new TextEncoder();
+
+  for (const entry of pageEntries) {
+    const streamContent = entry.page.commands.join('');
+    const streamBytes = encoder.encode(streamContent);
+    const streamLength = streamBytes.length;
+
+    objects.push({
+      id: entry.pId,
+      content: `<<\n/Type /Page\n/Parent ${pagesRootId} 0 R\n/MediaBox [0 0 ${pageWidth} ${pageHeight}]\n/Contents ${entry.contentId} 0 R\n/Resources <<\n  /Font <<\n    /F1 ${fontRegularId} 0 R\n    /F2 ${fontBoldId} 0 R\n  >>\n>>\n>>`
+    });
+
+    objects.push({
+      id: entry.contentId,
+      content: `<< /Length ${streamLength} >>\nstream\n${streamContent}\nendstream`
+    });
+  }
+
+  let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const offsets = {};
+
+  for (const obj of objects) {
+    offsets[obj.id] = encoder.encode(pdf).length;
+    pdf += `${obj.id} 0 obj\n${obj.content}\nendobj\n`;
+  }
+
+  const xrefStart = encoder.encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+
+  for (let id = 1; id <= objects.length; id++) {
+    const off = String(offsets[id]).padStart(10, '0');
+    pdf += `${off} 00000 n \n`;
+  }
+
+  pdf += `trailer\n<<\n/Size ${objects.length + 1}\n/Root ${catalogId} 0 R\n>>\nstartxref\n${xrefStart}\n%%EOF\n`;
+
+  return encoder.encode(pdf);
+}
+
+/**
+ * Handles exporting visible expenses as a downloadable PDF document.
+ */
+function handleExportPDF() {
   const visible = getFilteredAndSortedExpenses();
   if (visible.length === 0) {
-    alert('No expenses to export.');
+    alert('No expenses to export. Add expenses or adjust your filter criteria.');
     return;
   }
 
-  const headers = ['ID', 'Date', 'Title', 'Category', 'Amount_INR'];
-  const rows = visible.map(item => [
-    `"${item.id}"`,
-    `"${item.date}"`,
-    `"${item.title.replace(/"/g, '""')}"`,
-    `"${item.category}"`,
-    item.amount.toFixed(2)
-  ]);
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonthExpenses = expenses.filter(item => item.date && item.date.startsWith(currentMonthKey));
+  const thisMonthSpent = thisMonthExpenses.reduce((sum, item) => sum + item.amount, 0);
 
-  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // Determine top category from visible expenses
+  const catTotals = visible.reduce((acc, item) => {
+    acc[item.category] = (acc[item.category] || 0) + item.amount;
+    return acc;
+  }, {});
+
+  let topCat = '—';
+  let topAmt = 0;
+  for (const [c, a] of Object.entries(catTotals)) {
+    if (a > topAmt) {
+      topAmt = a;
+      topCat = c;
+    }
+  }
+
+  const summary = {
+    totalAmount: visible.reduce((sum, item) => sum + item.amount, 0),
+    count: visible.length,
+    monthlyBudget: monthlyBudget,
+    thisMonthSpent: thisMonthSpent,
+    topCategory: topCat,
+    topCategoryAmount: topAmt,
+    exportDate: now.toISOString().slice(0, 10)
+  };
+
+  const pdfBytes = generateExpensePDF(visible, summary);
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `expenses_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.href = url;
+  link.download = `Expense_Report_${summary.exportDate}.pdf`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -938,10 +1489,12 @@ function setupEventListeners() {
   // Cancel edit button
   cancelBtn.addEventListener('click', resetFormState);
 
-  // Keyboard shortcut: Escape cancels edit mode, closes calendar, or closes dropdowns
+  // Keyboard shortcut: Escape cancels edit mode, closes calendar/budget modals, or closes dropdowns
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (customCalendarModal && customCalendarModal.style.display !== 'none') {
+      if (budgetModal && budgetModal.style.display !== 'none') {
+        closeBudgetModal();
+      } else if (customCalendarModal && customCalendarModal.style.display !== 'none') {
         closeCalendarModal();
       } else if (wrapperExpenseCategory && wrapperExpenseCategory.classList.contains('open')) {
         closeCategoryDropdown();
@@ -1234,9 +1787,35 @@ function setupEventListeners() {
   // Reset Filters Button
   resetFiltersBtn.addEventListener('click', resetFilters);
 
-  // Export to CSV Button
-  if (exportCsvBtn) {
-    exportCsvBtn.addEventListener('click', handleExportCSV);
+  // Theme Toggle Button
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+  }
+
+  // Monthly Budget Target Modal Listeners
+  if (editBudgetBtn) {
+    editBudgetBtn.addEventListener('click', openBudgetModal);
+  }
+  if (budgetForm) {
+    budgetForm.addEventListener('submit', handleBudgetSubmit);
+  }
+  if (cancelBudgetBtn) {
+    cancelBudgetBtn.addEventListener('click', closeBudgetModal);
+  }
+  if (closeBudgetModalBtn) {
+    closeBudgetModalBtn.addEventListener('click', closeBudgetModal);
+  }
+  if (budgetModal) {
+    budgetModal.addEventListener('click', (e) => {
+      if (e.target === budgetModal) {
+        closeBudgetModal();
+      }
+    });
+  }
+
+  // Export to PDF Button
+  if (exportPdfBtn) {
+    exportPdfBtn.addEventListener('click', handleExportPDF);
   }
 
   // Clear All Data Button
@@ -1248,6 +1827,7 @@ function setupEventListeners() {
 // ==========================================================================
 
 function initApp() {
+  initTheme();
   setDefaultDate();
   setupEventListeners();
   render();

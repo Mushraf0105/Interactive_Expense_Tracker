@@ -20,6 +20,12 @@
           <p>Manage, categorize, and monitor your personal spending</p>
         </div>
       </div>
+      <div class="header-actions">
+        <button id="theme-toggle-btn" class="theme-toggle-btn" type="button" aria-label="Toggle light or dark theme" title="Toggle theme">
+          <span class="theme-icon" id="theme-icon">🌙</span>
+          <span class="theme-label" id="theme-label">Dark Mode</span>
+        </button>
+      </div>
     </header>
 
     <!-- Spending Overview Cards -->
@@ -30,6 +36,18 @@
           <span class="card-label">Total Expenses</span>
           <h2 id="total-amount">₹0.00</h2>
           <span class="card-subtext" id="total-count">0 transactions recorded</span>
+        </div>
+      </div>
+
+      <div class="summary-card budget-card">
+        <div class="card-icon">🎯</div>
+        <div class="card-info">
+          <div class="card-label-row">
+            <span class="card-label">Monthly Budget</span>
+            <button type="button" id="edit-budget-btn" class="btn-icon-link" title="Change monthly budget limit">✏️ Edit</button>
+          </div>
+          <h2 id="budget-remaining-amount">₹0.00</h2>
+          <span class="card-subtext" id="budget-status-subtext">₹0.00 spent of ₹25,000</span>
         </div>
       </div>
 
@@ -49,6 +67,30 @@
           <h2 id="top-category-name">—</h2>
           <span class="card-subtext" id="top-category-amount">₹0.00 spent</span>
         </div>
+      </div>
+    </section>
+
+    <!-- Live Budget Target & Over-Budget Alert Banner -->
+    <section class="card budget-alert-card" id="budget-alert-card" aria-label="Monthly Budget Status">
+      <div class="budget-card-header">
+        <div class="budget-title-wrap">
+          <span class="budget-status-icon" id="budget-status-icon">🎯</span>
+          <div>
+            <h4 id="budget-month-heading">Monthly Budget Status (November 2026)</h4>
+            <p class="budget-status-message" id="budget-status-message">Tracking spending against target budget</p>
+          </div>
+        </div>
+        <div class="budget-badge-wrap">
+          <span class="budget-pct-badge" id="budget-pct-badge">0.0% Used</span>
+        </div>
+      </div>
+      <div class="budget-progress-container">
+        <div class="budget-progress-bar" id="budget-progress-bar" style="width: 0%;"></div>
+      </div>
+      <div class="budget-metrics-row">
+        <span>Target Budget: <strong id="budget-target-display">₹25,000.00</strong></span>
+        <span>Spent This Month: <strong id="budget-spent-display">₹0.00</strong></span>
+        <span>Remaining: <strong id="budget-remaining-display">₹25,000.00</strong></span>
       </div>
     </section>
 
@@ -273,8 +315,8 @@
               <span class="count-badge" id="listing-count-badge">0 items</span>
             </div>
             <div class="listing-header-actions">
-              <button id="export-csv-btn" class="btn btn-sm btn-outline" title="Export displayed expenses to CSV">
-                📥 Export CSV
+              <button id="export-pdf-btn" class="btn btn-sm btn-outline" title="Export displayed expenses to PDF">
+                📄 Export PDF
               </button>
               <button id="clear-all-btn" class="btn btn-sm btn-danger-outline" title="Clear all stored expenses">
                 Clear All Data
@@ -309,6 +351,37 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- Monthly Budget Target Modal (100% Mobile Responsive) -->
+  <div id="budget-modal" class="calendar-modal-backdrop" style="display: none;">
+    <div class="calendar-modal-content budget-modal-content" role="dialog" aria-modal="true" aria-label="Set Monthly Budget Target">
+      <div class="cal-header">
+        <h3 class="modal-title">Set Monthly Budget</h3>
+        <button type="button" id="close-budget-modal-btn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <p class="modal-desc">Define your spending limit for the month to track your financial health and receive real-time alerts.</p>
+      <form id="budget-form" novalidate>
+        <div class="form-group">
+          <label for="budget-input">Monthly Budget (₹) <span class="required">*</span></label>
+          <input 
+            type="number" 
+            id="budget-input" 
+            name="budget" 
+            placeholder="e.g., 25000" 
+            min="100" 
+            step="100" 
+            required
+            autocomplete="off"
+          >
+          <small class="error-msg" id="budget-error"></small>
+        </div>
+        <div class="modal-btn-row">
+          <button type="button" id="cancel-budget-btn" class="btn btn-sm btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Save Target</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Global Custom Calendar Modal (100% Mobile Responsive) -->
