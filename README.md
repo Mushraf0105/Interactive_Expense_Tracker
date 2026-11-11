@@ -8,9 +8,9 @@
 
 - **Organization:** Veda Technology
 - **Project Name:** Interactive Expense Tracker Web Application
-- **Version:** `v1.2.0`
+- **Version:** `v1.3.0`
 - **Initial Release Date:** November 09, 2026 (`v1.0.0`)
-- **Latest Feature Update:** November 10, 2026 (`v1.2.0`)
+- **Latest Feature Update:** November 11, 2026 (`v1.3.0`)
 - **Assessment Scope:** Multi-Section Responsive Portal & Mobile UI Engineering
 - **Regional Hub:** Lakhisarai, Bihar, India
 - **Verification Status:** `100% Completed & Verified`
@@ -20,14 +20,15 @@
 
 ## 📋 Executive Summary
 
-This official engineering documentation outlines the design, architecture, progressive feature deliverables, and verification audits for the **Veda Technology Interactive Expense Tracker** web portal. Delivered on **November 09, 2026 (`v1.0.0`)** and upgraded with advanced risk control, reporting, and theming capabilities on **November 10, 2026 (`v1.2.0`)**, the project strictly complies with the requirement for **100% pure HTML5, CSS3, and modern Vanilla JavaScript (ES6+)** with zero external libraries or build tooling.
+This official engineering documentation outlines the design, architecture, progressive feature deliverables, and verification audits for the **Veda Technology Interactive Expense Tracker** web portal. Initially released on **November 09, 2026 (`v1.0.0`)**, enhanced with dark mode, live budgeting, compact UI, and client-side PDF export on **November 10, 2026 (`v1.2.0`)**, and expanded with pure SVG data visualizations, recurring bill reminders, and non-blocking undo/bulk productivity tools on **November 11, 2026 (`v1.3.0`)**, the project strictly complies with **100% pure HTML5, CSS3, and modern Vanilla JavaScript (ES6+)** with zero external libraries or build tooling.
 
 The platform provides an end-to-end personal finance management suite featuring:
 - **Core Financial Tracking:** Real-time expense creation, editing, deletion, and persistent offline `localStorage` caching formatted in Indian Rupees (INR ₹).
 - **Dynamic Risk & Budget Control:** Live monthly budget goal tracking, real-time progress calculation, and a 3-tier visual alert indicator (🟢 Safe `< 75%`, 🟡 Caution `75%–99.9%`, 🚨 Critical Over-Budget `≥ 100%`).
-- **Zero-Dependency PDF Export:** Native client-side binary PDF 1.4 stream generator producing formatted, multi-page financial audit reports (`Expense_Report_YYYY-MM-DD.pdf`).
-- **Ergonomic Design & Custom Controls:** Unified 5-column horizontal filter and sort tool-strip, hybrid category combobox, interactive calendar modal with quick date range pills, and sleek 32px space-efficient form inputs.
-- **Universal Accessibility & Responsive Parity:** Seamless Dark/Light mode switching with OS preference auto-detection, fluid table-to-card mobile transformation, and verified WCAG 2.1 AA compliance across mobile, tablet, and desktop displays.
+- **Interactive SVG Analytics & Charts:** Zero-library pure SVG category donut chart with hover readouts & click-to-filter support alongside a `7 Days` / `6 Months` spending trend bar chart.
+- **Recurring Bills & Reminders:** Weekly/Monthly expense scheduling, upcoming 7-day bill reminder alerts, optional startup auto-logging, and a dedicated manager modal.
+- **Non-Blocking Undo & Bulk Actions:** Floating 5-second Undo toast alerts for safe instant deletions, multi-select row checkboxes, **Export Selected PDF**, and **Delete Selected**.
+- **Zero-Dependency PDF Export & Theme Parity:** Client-side binary PDF 1.4 report generation (`Expense_Report_YYYY-MM-DD.pdf`), Dark/Light theme switching, fluid mobile card transformation, and verified WCAG 2.1 AA accessibility.
 
 ---
 
@@ -49,6 +50,9 @@ The platform provides an end-to-end personal finance management suite featuring:
 | **Zero-Dependency PDF Export Engine** | **November 10, 2026** | Reporting & Export | ✅ Production | Pure client-side binary PDF 1.4 stream generator producing formatted audit reports |
 | **Horizontal 5-Column Filter & Sort Strip**| **November 10, 2026** | UX / Filter Layout | ✅ Production | Unified desktop grid aligning Search, Category, Dates, and Sort By in one row |
 | **Compact Sleek UI & Space Optimization** | **November 10, 2026** | UI Refinement | ✅ Production | Space-efficient 10px padding, 32px inputs, zero label truncation, and 320px sidebar |
+| **Visual Analytics & Pure SVG Charts** | **November 11, 2026** | Analytics & Visualizations | ✅ Production | Interactive SVG Donut chart + 7-Day / 6-Month spending trend bar chart with tooltips |
+| **Recurring Expenses & Bill Reminders** | **November 11, 2026** | Automation & Scheduling | ✅ Production | Weekly/Monthly repeat toggle, due bill alert banner, auto-log & manager modal |
+| **Toast Alerts, Undo Delete & Bulk Actions**| **November 11, 2026** | Productivity & UX | ✅ Production | Non-blocking 5s Undo toasts, multi-select checkboxes, Bulk Delete & Export Selected PDF |
 
 ---
 
@@ -129,6 +133,20 @@ The platform provides an end-to-end personal finance management suite featuring:
 - **Delete:** Safe record removal with a confirmation dialog.
 - **Offline Persistence:** All expenses, filters, themes, budgets, and custom categories persist in the browser's `localStorage` across page reloads and browser restarts.
 
+### 12. 📊 Visual Analytics & Pure SVG Charts *(Added: November 11, 2026)*
+- **Interactive SVG Donut Chart:** Renders proportional category slices with smooth hover highlighting, live center total/category readout, and one-click slice-to-filter integration.
+- **Spending Trend Bar Chart (`7 Days` / `6 Months`):** Pure SVG vertical bar chart with theme-aware gridlines, Month-over-Month percentage comparison badge, and interactive hover tooltips.
+
+### 13. 🔁 Recurring Expenses & Bill Reminders *(Added: November 11, 2026)*
+- **Form Repeat Selector:** Schedule new expenses as **One-time**, **Weekly**, or **Monthly** using compact toggle pills directly in the entry form.
+- **Upcoming Bill Reminders Strip:** Alerts you when recurring bills are overdue or due within 7 days with a one-click **✓ Log Next Due** action.
+- **Recurring Bills Manager Modal:** View active/paused schedules, pause or resume reminders, log due bills manually, delete schedules with Undo, or toggle automatic logging on startup.
+
+### 14. ↩️ Non-Blocking Toast Alerts, Undo Delete & Bulk Actions *(Added: November 11, 2026)*
+- **Floating Toast System:** Replaces blocking browser `alert()` / `confirm()` popups with animated corner toasts displaying a countdown bar.
+- **Instant 5-Second Undo Delete:** Deleting any single transaction, clearing all records, or running bulk delete shows an interactive **↩️ Undo** button restoring items back to their exact positions.
+- **Multi-Select Checkboxes & Bulk Bar:** Select individual rows or toggle all visible entries via `#select-all-checkbox` (supporting indeterminate state) to **Export Selected PDF** or **Delete Selected** at once.
+
 ---
 
 ## 🛡️ Form Validation & Error Handling Matrix
@@ -152,19 +170,29 @@ The platform provides an end-to-end personal finance management suite featuring:
 4. Select the transaction date using the calendar picker (defaults to today's date).
 5. Click **➕ Add Expense**. The expense is logged, summary cards recalculate, and the record appears in the ledger.
 
-### 2. Modifying or Deleting an Expense
+### 2. Modifying, Deleting & Bulk Actions *(Updated: November 11, 2026)*
 - **Edit Record:** Click the **✏️ Edit** button on any table row or mobile card. The form loads the transaction values, displays an amber **"Editing"** badge, and enables an optional **"Cancel"** button.
-- **Delete Record:** Click the **🗑️ Delete** button on any row. An accessible confirmation dialog prevents accidental data loss.
+- **Instant Delete with 5s Undo:** Click the **🗑️ Delete** button on any row to remove it immediately with a non-blocking **↩️ Undo** toast alert restoring it to its original position.
+- **Bulk Selection:** Check individual rows or the header **Select All** checkbox to reveal the Bulk Action toolbar (**📄 Export Selected PDF**, **🗑️ Delete Selected** with Undo, or **✕ Clear**).
 
-### 3. Managing Monthly Budget & Live Alerts
+### 3. Visual Analytics & SVG Charts *(Added: November 11, 2026)*
+- **Category Donut Chart:** Hover over any SVG slice or legend entry to preview that category's total and share in the donut center; click any slice or legend tag to toggle filtering by that category.
+- **Spending Trend Bar Chart:** Toggle between **7 Days** and **6 Months** views, compare spending against the prior month via the MoM delta label, and hover bars for exact rupee totals and item counts.
+
+### 4. Recurring Expenses & Bill Reminders *(Added: November 11, 2026)*
+1. Select **🔁 Weekly** or **🔁 Monthly** under **Repeat / Reminder** when logging a recurring expense.
+2. When bills are overdue or due within 7 days, the **Upcoming Bill Reminders** strip lets you log them in one click (**✓ Log Next Due**).
+3. Click **🔁 Recurring Bills** in the header to pause/resume schedules, log bills manually, delete reminders (with Undo), or toggle automatic logging on startup.
+
+### 5. Managing Monthly Budget & Live Alerts *(Added: November 10, 2026)*
 1. Click the **✏️ Edit** link on the Monthly Budget overview card.
-2. Enter your spending target limit in the modal (e.g., `₹50,000.00`) and click **Save Budget Target**.
+2. Enter your spending target limit in the modal (e.g., `₹50,000.00`) and click **Save Target**.
 3. The live banner instantly computes active month spending, remaining funds, and sets the alert state:
    - 🟢 **Safe:** Spent $< 75\%$ of budget.
    - 🟡 **Caution:** Spent between $75\%$ and $99.9\%$.
    - 🚨 **Over-Budget:** Spent $\ge 100\%$, showing negative deficit in red.
 
-### 4. Filtering and Sorting Expenses
+### 6. Filtering and Sorting Expenses *(Updated: November 10, 2026)*
 - **Search Title:** Type any keyword into the search field for real-time keystroke filtering.
 - **Filter Category:** Filter by any standard category or custom category created in this session.
 - **Date Range:** Set custom **From Date** and **To Date** intervals.
@@ -172,8 +200,8 @@ The platform provides an end-to-end personal finance management suite featuring:
 - **Quick Range Presets:** Click **Today**, **This Week**, or **This Month** to instantly apply date filters.
 - **Reset Filters:** Click **Reset Filters** to restore all filter controls to default.
 
-### 5. Exporting Financial Audit Reports
-- Click the **📄 Export PDF** button in the ledger header.
+### 7. Exporting Financial Audit Reports *(Added: November 10, 2026)*
+- Click the **📄 Export PDF** button in the ledger header (or **📄 Export Selected** in the bulk bar).
 - An official, multi-page PDF document (`Expense_Report_YYYY-MM-DD.pdf`) is instantly generated client-side and downloaded without third-party libraries.
 
 ---
@@ -183,10 +211,11 @@ The platform provides an end-to-end personal finance management suite featuring:
 | Layer | Technology | Details |
 | :--- | :--- | :--- |
 | **Markup** | HTML5 | Clean semantic structure (`header`, `main`, `section`, `table`, `dialog`) with accessible ARIA landmarks. |
-| **Styling** | CSS3 | Responsive CSS Grid, Flexbox layout, CSS custom properties (variables), smooth animations, and mobile media queries. |
-| **Logic** | Vanilla JavaScript (ES6+) | Modern ES6 modules, array methods (`.filter()`, `.sort()`, `.reduce()`), event delegation, and Web Storage API. |
+| **Styling** | CSS3 | Responsive CSS Grid, Flexbox layout, CSS custom properties (variables), dark/light theme tokens, and animations. |
+| **Visualizations** | Pure Inline SVG | Hand-crafted SVG donut and trend bar charts built dynamically via DOM/SVG without charting libraries. |
+| **Logic** | Vanilla JavaScript (ES6+) | Array methods (`.filter()`, `.sort()`, `.reduce()`), event delegation, Undo toast engine, and Web Storage API. |
 | **Export** | Native JS PDF 1.4 | Client-side pure binary PDF generator stream without external dependencies. |
-| **External Dependencies** | **None (Zero)** | 100% self-contained codebase without jQuery, React, Bootstrap, or NPM build tools. |
+| **External Dependencies** | **None (Zero)** | 100% self-contained codebase without jQuery, React, Bootstrap, Chart.js, or NPM build tools. |
 
 ---
 
@@ -194,10 +223,10 @@ The platform provides an end-to-end personal finance management suite featuring:
 
 ```
 Interactive_Expense_Tracker/
-├── index.html       # Single-page portal: semantic layout, dashboard cards, custom controls & modal dialogs
-├── style.css        # Responsive styling: layout grids, dark/light theme tokens, compact controls & animations
-├── script.js        # Core engine: state management, validation, calendar modal, filters, live budget & PDF export
-└── README.md        # Technical assessment documentation, release timeline, and user guide
+├── index.html       # Single-page portal: analytics charts, reminders, forms, bulk bar & accessible modals
+├── style.css        # Responsive styling: dark/light theme tokens, SVG chart styles, toast alerts & mobile cards
+├── script.js        # Core engine: state, SVG charts, recurring schedules, 5s undo toasts, bulk ops & PDF export
+└── README.md        # Technical documentation, dated feature changelog, and user operation guide
 ```
 
 ---
@@ -209,7 +238,7 @@ No Node.js, npm, webpack, or server dependencies are required. Simply open `inde
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/Interactive_Expense_Tracker.git
+   git clone https://github.com/Mushraf0105/Interactive_Expense_Tracker.git
    cd Interactive_Expense_Tracker
    ```
 
@@ -231,49 +260,35 @@ No Node.js, npm, webpack, or server dependencies are required. Simply open `inde
 
 ## 🧪 Core Implementation Highlights
 
-### 1. Multi-Criteria Filtering Engine (`script.js`)
+### 1. Interactive Pure SVG Donut & Trend Bar Charts (`script.js`)
 ```javascript
-const filtered = expenses.filter(item => {
-  const matchesSearch = !searchTerm || item.title.toLowerCase().includes(searchTerm.toLowerCase());
-  const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-  const matchesStart = !startDate || item.date >= startDate;
-  const matchesEnd = !endDate || item.date <= endDate;
-  return matchesSearch && matchesCategory && matchesStart && matchesEnd;
+// Renders circular stroke-dasharray SVG slices & daily/monthly trend bars
+renderDonutChart(sortedCategories, totalAmount);
+renderTrendChart(); // Switches dynamically between 7-day and 6-month intervals
+```
+
+### 2. Non-Blocking Undo Toast Notification & Bulk Restore (`script.js`)
+```javascript
+showToast({
+  message: `Deleted ${count} selected expenses.`,
+  type: 'danger',
+  duration: 5000,
+  onUndo: () => { /* Restores snapshots to exact array indices */ }
 });
 ```
 
-### 2. Live Monthly Budget & Over-Budget Alert Calculation (`script.js`)
+### 3. Safe Recurring Date Advancement (`script.js`)
 ```javascript
-// Calculate spending for current active calendar month
-const currentYearMonth = new Date().toISOString().slice(0, 7);
-const monthExpenses = expenses.filter(e => e.date && e.date.startsWith(currentYearMonth));
-const currentMonthSpent = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
-const budgetPct = monthlyBudgetTarget > 0 ? (currentMonthSpent / monthlyBudgetTarget) * 100 : 0;
-const budgetRemaining = monthlyBudgetTarget - currentMonthSpent;
-```
-
-### 3. Client-Side Pure PDF 1.4 Binary Generator (`script.js`)
-```javascript
-// Zero-dependency pure client-side PDF document stream assembly
-function generateExpensePDF(records, total, meta) {
-  let pdf = '%PDF-1.4\n';
-  // Builds PDF catalog, info dictionary, page tree, font definitions, and content stream
-  // Generates formatted header, scorecard, expense ledger, and page footers
-  const blob = new Blob([pdfContent], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  // Auto-downloads Expense_Report_YYYY-MM-DD.pdf
+function advanceDateByFrequency(dateYMD, frequency) {
+  // Advances weekly (+7 days) or monthly (clamped safely to month-end, e.g. Jan 31 -> Feb 28)
 }
 ```
 
-### 4. Smart Upward Dropdown Positioning (`script.js`)
+### 4. Client-Side Pure PDF 1.4 Binary Generator (`script.js`)
 ```javascript
-// Automatically open upward if within 250px of bottom viewport
-const rect = menu.getBoundingClientRect();
-const spaceBelow = window.innerHeight - rect.top;
-if (spaceBelow < 250) {
-  menu.classList.add('drop-up');
-} else {
-  menu.classList.remove('drop-up');
+// Zero-dependency pure client-side PDF document stream assembly
+function generateExpensePDF(expensesList, summary) {
+  // Builds PDF catalog, pages tree, font dictionaries, formatted tables & cross-reference offsets
 }
 ```
 

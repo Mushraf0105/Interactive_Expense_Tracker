@@ -5,6 +5,8 @@
 const STORAGE_KEY = 'interactive_expenses_inr_data';
 const THEME_KEY = 'interactive_expenses_theme';
 const BUDGET_KEY = 'interactive_expenses_monthly_budget';
+const RECURRING_KEY = 'interactive_expenses_recurring_rules';
+const AUTO_LOG_RECUR_KEY = 'interactive_expenses_auto_log_recurring';
 const DEFAULT_BUDGET = 25000.00;
 
 // Default initial expenses provided if localStorage is empty
@@ -42,17 +44,24 @@ const DEFAULT_EXPENSES = [
 // Application State
 let expenses = loadExpenses();
 let monthlyBudget = loadMonthlyBudget();
+let recurringRules = loadRecurringRules();
+let autoLogRecurring = loadAutoLogPreference();
+let selectedExpenseIds = new Set();
+let activeChartRange = '7d';
 let isEditing = false;
 let currentEditId = null;
+let activeConfirmCallback = null;
 
 // ==========================================================================
 // 2. DOM Elements
 // ==========================================================================
 
-// Theme Toggle Elements
+// Theme Toggle & Recurring Header Elements
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
 const themeIcon = document.getElementById('theme-icon');
 const themeLabel = document.getElementById('theme-label');
+const openRecurringBtn = document.getElementById('open-recurring-btn');
+const recurringCountBadge = document.getElementById('recurring-count-badge');
 
 // Form Elements
 const expenseForm = document.getElementById('expense-form');
@@ -64,6 +73,9 @@ const wrapperExpenseCategory = document.getElementById('wrapper-expense-category
 const expenseCategoryToggle = document.getElementById('expense-category-toggle');
 const expenseCategoryDropdown = document.getElementById('expense-category-dropdown');
 const expenseDateInput = document.getElementById('expense-date');
+const expenseRecurrenceInput = document.getElementById('expense-recurrence');
+const recurrenceFormGroup = document.getElementById('recurrence-form-group');
+const recurrencePills = document.getElementById('recurrence-pills');
 const submitBtn = document.getElementById('submit-btn');
 const submitBtnText = document.getElementById('submit-btn-text');
 const cancelBtn = document.getElementById('cancel-btn');
@@ -108,9 +120,25 @@ const budgetError = document.getElementById('budget-error');
 const cancelBudgetBtn = document.getElementById('cancel-budget-btn');
 const closeBudgetModalBtn = document.getElementById('close-budget-modal-btn');
 
-// Category Breakdown Elements
+// Recurring Bills Reminder & Modal Elements
+const recurringReminderBar = document.getElementById('recurring-reminder-bar');
+const reminderTitleEl = document.getElementById('reminder-title');
+const reminderDescEl = document.getElementById('reminder-desc');
+const reminderQuickLogBtn = document.getElementById('reminder-quick-log-btn');
+const reminderManageBtn = document.getElementById('reminder-manage-btn');
+const recurringModal = document.getElementById('recurring-modal');
+const closeRecurringModalBtn = document.getElementById('close-recurring-modal-btn');
+const doneRecurringBtn = document.getElementById('done-recurring-btn');
+const recurringListContainer = document.getElementById('recurring-list-container');
+const autoLogRecurringToggle = document.getElementById('auto-log-recurring-toggle');
+
+// Analytics & Pure SVG Chart Elements
+const categoryDonutContainer = document.getElementById('category-donut-container');
 const categoryProgressBar = document.getElementById('category-progress-bar');
 const categoryLegend = document.getElementById('category-legend');
+const trendChartContainer = document.getElementById('trend-chart-container');
+const trendDeltaBadge = document.getElementById('trend-delta-badge');
+const chartTabButtons = document.querySelectorAll('.chart-tab-btn');
 
 // Category Colors for Visual Summary
 const CATEGORY_COLORS = {
@@ -152,7 +180,7 @@ const calTodayBtn = document.getElementById('cal-today-btn');
 const calClearBtn = document.getElementById('cal-clear-btn');
 const calCloseBtn = document.getElementById('cal-close-btn');
 
-// Listing & Table Elements
+// Listing, Table & Bulk Action Elements
 const expenseListBody = document.getElementById('expense-list-body');
 const listingCountBadge = document.getElementById('listing-count-badge');
 const emptyState = document.getElementById('empty-state');
@@ -160,6 +188,22 @@ const emptyStateMessage = document.getElementById('empty-state-message');
 const expensesTable = document.getElementById('expenses-table');
 const clearAllBtn = document.getElementById('clear-all-btn');
 const exportPdfBtn = document.getElementById('export-pdf-btn');
+const selectAllCheckbox = document.getElementById('select-all-checkbox');
+const bulkActionBar = document.getElementById('bulk-action-bar');
+const bulkSelectedText = document.getElementById('bulk-selected-text');
+const bulkSelectedTotal = document.getElementById('bulk-selected-total');
+const bulkExportPdfBtn = document.getElementById('bulk-export-pdf-btn');
+const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+const bulkClearBtn = document.getElementById('bulk-clear-btn');
+
+// Custom Confirmation Modal & Toast Elements
+const confirmModal = document.getElementById('confirm-modal');
+const confirmModalTitle = document.getElementById('confirm-modal-title');
+const confirmModalMessage = document.getElementById('confirm-modal-message');
+const closeConfirmModalBtn = document.getElementById('close-confirm-modal-btn');
+const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
+const okConfirmBtn = document.getElementById('ok-confirm-btn');
+const toastContainer = document.getElementById('toast-container');
 
 // ==========================================================================
 // 3. LocalStorage Persistence & Theme
@@ -193,8 +237,203 @@ function saveExpenses() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
   } catch (error) {
     console.error('Error saving expenses to LocalStorage:', error);
-    alert('Unable to save changes to LocalStorage. Disk may be full.');
+    showToast({ message: 'Unable to save to LocalStorage. Storage may be full.', type: 'danger' });
   }
+}
+
+/**
+ * Formats a Date object into YYYY-MM-DD in local time.
+ */
+function formatDateYMD(dateObj) {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Returns today's date string in YYYY-MM-DD.
+ */
+function getTodayYMD() {
+  return formatDateYMD(new Date());
+}
+
+/**
+ * Advances a YYYY-MM-DD date string by frequency ('weekly' or 'monthly').
+ */
+function advanceDateByFrequency(dateYMD, frequency) {
+  const parts = (dateYMD || getTodayYMD()).split('-').map(Number);
+  const year = parts[0];
+  const monthIdx = (parts[1] || 1) - 1;
+  const day = parts[2] || 1;
+
+  if (frequency === 'weekly') {
+    const dt = new Date(year, monthIdx, day + 7);
+    return formatDateYMD(dt);
+  }
+  if (frequency === 'monthly') {
+    const targetMonth = monthIdx + 1;
+    const maxDays = new Date(year, targetMonth + 1, 0).getDate();
+    const clampedDay = Math.min(day, maxDays);
+    return formatDateYMD(new Date(year, targetMonth, clampedDay));
+  }
+  return dateYMD;
+}
+
+/**
+ * Loads recurring bill schedules from LocalStorage (seeds sample upcoming reminder on first visit).
+ */
+function loadRecurringRules() {
+  try {
+    const raw = localStorage.getItem(RECURRING_KEY);
+    if (raw === null) {
+      const sampleDue = new Date();
+      sampleDue.setDate(sampleDue.getDate() + 2);
+      const seed = [
+        {
+          id: 'rec-default-1',
+          title: 'Broadband & Wi-Fi Plan',
+          amount: 999.00,
+          category: 'Housing & Utilities',
+          frequency: 'monthly',
+          nextDueDate: formatDateYMD(sampleDue),
+          active: true
+        }
+      ];
+      localStorage.setItem(RECURRING_KEY, JSON.stringify(seed));
+      return seed;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error loading recurring rules:', e);
+    return [];
+  }
+}
+
+/**
+ * Saves recurring rules array to LocalStorage.
+ */
+function saveRecurringRules() {
+  try {
+    localStorage.setItem(RECURRING_KEY, JSON.stringify(recurringRules));
+  } catch (e) {
+    console.error('Error saving recurring rules:', e);
+  }
+}
+
+function loadAutoLogPreference() {
+  try {
+    return localStorage.getItem(AUTO_LOG_RECUR_KEY) === 'true';
+  } catch (e) {
+    return false;
+  }
+}
+
+function saveAutoLogPreference(enabled) {
+  try {
+    autoLogRecurring = Boolean(enabled);
+    localStorage.setItem(AUTO_LOG_RECUR_KEY, String(autoLogRecurring));
+  } catch (e) {}
+}
+
+/**
+ * Displays a non-blocking floating toast notification with optional Undo action.
+ */
+function showToast({ message, type = 'info', duration = 5000, onUndo = null }) {
+  if (!toastContainer) return;
+
+  const icons = {
+    success: '✅',
+    info: 'ℹ️',
+    warning: '⚠️',
+    danger: '🗑️'
+  };
+
+  const toast = document.createElement('div');
+  toast.className = `toast-item toast-${type}`;
+  toast.setAttribute('role', 'status');
+
+  const body = document.createElement('div');
+  body.className = 'toast-body';
+
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'toast-icon';
+  iconSpan.textContent = icons[type] || 'ℹ️';
+
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'toast-message';
+  msgSpan.textContent = message;
+
+  body.appendChild(iconSpan);
+  body.appendChild(msgSpan);
+
+  const actions = document.createElement('div');
+  actions.className = 'toast-actions';
+
+  let dismissed = false;
+  let timerId = null;
+
+  function dismissToast() {
+    if (dismissed) return;
+    dismissed = true;
+    if (timerId) clearTimeout(timerId);
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    toast.style.transition = 'opacity 0.16s ease, transform 0.16s ease';
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 170);
+  }
+
+  if (typeof onUndo === 'function') {
+    const undoBtn = document.createElement('button');
+    undoBtn.type = 'button';
+    undoBtn.className = 'toast-undo-btn';
+    undoBtn.textContent = '↩️ Undo';
+    undoBtn.addEventListener('click', () => {
+      onUndo();
+      dismissToast();
+    });
+    actions.appendChild(undoBtn);
+  }
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'toast-close-btn';
+  closeBtn.setAttribute('aria-label', 'Dismiss notification');
+  closeBtn.textContent = '✕';
+  closeBtn.addEventListener('click', dismissToast);
+  actions.appendChild(closeBtn);
+
+  const progress = document.createElement('div');
+  progress.className = 'toast-progress';
+  progress.style.animationDuration = `${duration}ms`;
+
+  toast.appendChild(body);
+  toast.appendChild(actions);
+  toast.appendChild(progress);
+
+  toastContainer.appendChild(toast);
+  timerId = setTimeout(dismissToast, duration);
+}
+
+/**
+ * Opens accessible custom confirmation modal (replaces native browser confirm()).
+ */
+function showConfirmDialog({ title, message, confirmLabel = 'Confirm', onConfirm }) {
+  if (!confirmModal) return;
+  if (confirmModalTitle) confirmModalTitle.textContent = title || 'Confirm Action';
+  if (confirmModalMessage) confirmModalMessage.textContent = message || 'Are you sure?';
+  if (okConfirmBtn) okConfirmBtn.textContent = confirmLabel;
+  activeConfirmCallback = onConfirm;
+  confirmModal.style.display = 'flex';
+}
+
+function closeConfirmModal() {
+  if (!confirmModal) return;
+  confirmModal.style.display = 'none';
+  activeConfirmCallback = null;
 }
 
 /**
@@ -476,39 +715,35 @@ function updateSummaryCards(filteredList) {
   filteredAmountEl.textContent = formatCurrency(filteredTotal);
   filteredCountEl.textContent = `${filteredList.length} item${filteredList.length === 1 ? '' : 's'} displayed`;
 
-  // Top Category Calculation
+  // Top Category & Breakdown Calculation
   if (expenses.length === 0) {
     topCategoryNameEl.textContent = '—';
     topCategoryAmountEl.textContent = '₹0.00 spent';
-    updateCategoryBreakdown([]);
-    return;
-  }
+    updateCategoryBreakdown({}, 0);
+  } else {
+    const categoryTotals = expenses.reduce((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + item.amount;
+      return acc;
+    }, {});
 
-  // Aggregate spending by category using reduce()
-  const categoryTotals = expenses.reduce((acc, item) => {
-    acc[item.category] = (acc[item.category] || 0) + item.amount;
-    return acc;
-  }, {});
+    let topCategory = '—';
+    let topAmount = 0;
 
-  // Find category with highest expenditure
-  let topCategory = '—';
-  let topAmount = 0;
-
-  for (const [category, amount] of Object.entries(categoryTotals)) {
-    if (amount > topAmount) {
-      topAmount = amount;
-      topCategory = category;
+    for (const [category, amount] of Object.entries(categoryTotals)) {
+      if (amount > topAmount) {
+        topAmount = amount;
+        topCategory = category;
+      }
     }
+
+    topCategoryNameEl.textContent = topCategory;
+    topCategoryAmountEl.textContent = `${formatCurrency(topAmount)} spent`;
+    updateCategoryBreakdown(categoryTotals, overallTotal);
   }
 
-  topCategoryNameEl.textContent = topCategory;
-  topCategoryAmountEl.textContent = `${formatCurrency(topAmount)} spent`;
-
-  // Update Category Spending Breakdown
-  updateCategoryBreakdown(categoryTotals, overallTotal);
-
-  // Update Monthly Budget Target, Progress Bar & Live Alerts
+  // Always refresh Monthly Budget Target & Spending Trend Bar Chart
   updateBudgetDisplay();
+  renderTrendChart();
 }
 
 /**
@@ -634,10 +869,128 @@ function handleBudgetSubmit(e) {
   saveMonthlyBudget(numVal);
   closeBudgetModal();
   updateBudgetDisplay();
+  showToast({ message: `Monthly budget target updated to ${formatCurrency(numVal)}.`, type: 'success' });
 }
 
 /**
- * Updates the visual category breakdown bar and legend.
+ * Renders an interactive Pure SVG Donut Chart for category spending distribution.
+ */
+function renderDonutChart(sortedCategories, totalAmount) {
+  if (!categoryDonutContainer) return;
+
+  const size = 160;
+  const center = size / 2;
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
+
+  if (!totalAmount || sortedCategories.length === 0) {
+    categoryDonutContainer.innerHTML = `
+      <svg class="donut-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Empty category chart">
+        <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="var(--bg-hover)" stroke-width="18" />
+        <text x="${center}" y="${center - 3}" text-anchor="middle" class="donut-center-label">Total</text>
+        <text x="${center}" y="${center + 14}" text-anchor="middle" class="donut-center-amount">₹0.00</text>
+      </svg>
+    `;
+    return;
+  }
+
+  const gapLen = sortedCategories.length > 1 ? 2.5 : 0;
+  let offset = 0;
+  let slicesHtml = '';
+
+  sortedCategories.forEach(([cat, amt]) => {
+    const ratio = amt / totalAmount;
+    const segLen = Math.max(0.5, ratio * circumference - gapLen);
+    const pct = (ratio * 100).toFixed(1);
+    const color = getCategoryColor(cat);
+
+    slicesHtml += `
+      <circle
+        class="donut-slice"
+        cx="${center}"
+        cy="${center}"
+        r="${radius}"
+        fill="none"
+        stroke="${color}"
+        stroke-width="19"
+        stroke-dasharray="${segLen.toFixed(2)} ${circumference.toFixed(2)}"
+        stroke-dashoffset="${(-offset).toFixed(2)}"
+        transform="rotate(-90 ${center} ${center})"
+        data-category="${escapeHtml(cat)}"
+        data-amount="${amt}"
+        data-pct="${pct}"
+      >
+        <title>${escapeHtml(cat)}: ${formatCurrency(amt)} (${pct}%)</title>
+      </circle>
+    `;
+    offset += ratio * circumference;
+  });
+
+  const compactTotal = totalAmount >= 100000
+    ? `₹${(totalAmount / 100000).toFixed(1)}L`
+    : (totalAmount >= 1000 ? `₹${(totalAmount / 1000).toFixed(1)}k` : formatCurrency(totalAmount));
+
+  categoryDonutContainer.innerHTML = `
+    <svg class="donut-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Category spending distribution donut chart">
+      <circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="var(--bg-hover)" stroke-width="19" />
+      ${slicesHtml}
+      <text x="${center}" y="${center - 10}" text-anchor="middle" class="donut-center-label" id="donut-center-title">Total</text>
+      <text x="${center}" y="${center + 7}" text-anchor="middle" class="donut-center-amount" id="donut-center-val">${compactTotal}</text>
+      <text x="${center}" y="${center + 21}" text-anchor="middle" class="donut-center-pct" id="donut-center-pct">${sortedCategories.length} categor${sortedCategories.length === 1 ? 'y' : 'ies'}</text>
+    </svg>
+  `;
+
+  const titleNode = document.getElementById('donut-center-title');
+  const valNode = document.getElementById('donut-center-val');
+  const pctNode = document.getElementById('donut-center-pct');
+
+  const resetCenter = () => {
+    if (titleNode) titleNode.textContent = 'Total';
+    if (valNode) valNode.textContent = compactTotal;
+    if (pctNode) pctNode.textContent = `${sortedCategories.length} categor${sortedCategories.length === 1 ? 'y' : 'ies'}`;
+  };
+
+  const highlightCategory = (cat, amt, pct) => {
+    const shortCat = cat.length > 13 ? `${cat.slice(0, 12)}…` : cat;
+    const shortAmt = amt >= 100000
+      ? `₹${(amt / 100000).toFixed(1)}L`
+      : (amt >= 1000 ? `₹${(amt / 1000).toFixed(1)}k` : `₹${amt.toFixed(0)}`);
+    if (titleNode) titleNode.textContent = shortCat;
+    if (valNode) valNode.textContent = shortAmt;
+    if (pctNode) pctNode.textContent = `${pct}%`;
+  };
+
+  const toggleCategoryFilter = (cat) => {
+    if (!filterCategorySelect) return;
+    const nextVal = filterCategorySelect.value === cat ? 'all' : cat;
+    filterCategorySelect.value = nextVal;
+    render();
+    showToast({
+      message: nextVal === 'all' ? 'Showing all categories.' : `Filtered by "${nextVal}".`,
+      type: 'info',
+      duration: 2800
+    });
+  };
+
+  categoryDonutContainer.querySelectorAll('.donut-slice').forEach(slice => {
+    slice.addEventListener('mouseenter', () => {
+      slice.classList.add('active');
+      highlightCategory(slice.dataset.category, parseFloat(slice.dataset.amount), slice.dataset.pct);
+    });
+    slice.addEventListener('mouseleave', () => {
+      slice.classList.remove('active');
+      resetCenter();
+    });
+    slice.addEventListener('click', () => {
+      toggleCategoryFilter(slice.dataset.category);
+    });
+  });
+
+  return { highlightCategory, resetCenter, toggleCategoryFilter };
+}
+
+/**
+ * Updates the visual category breakdown bar, SVG donut chart, and interactive legend.
  */
 function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
   if (!categoryProgressBar || !categoryLegend) return;
@@ -646,13 +999,15 @@ function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
   categoryLegend.innerHTML = '';
 
   if (totalAmount <= 0 || Object.keys(categoryTotals).length === 0) {
-    categoryProgressBar.innerHTML = '<div style="width: 100%; background: #e2e8f0; height: 100%;"></div>';
+    renderDonutChart([], 0);
+    categoryProgressBar.innerHTML = '<div style="width: 100%; background: var(--bg-hover); height: 100%;"></div>';
     categoryLegend.innerHTML = '<span class="breakdown-subtitle">No spending data to visualize</span>';
     return;
   }
 
   // Sort categories by expenditure (descending)
   const sorted = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+  const donutApi = renderDonutChart(sorted, totalAmount);
 
   sorted.forEach(([cat, amt]) => {
     const pct = ((amt / totalAmount) * 100).toFixed(1);
@@ -666,25 +1021,394 @@ function updateCategoryBreakdown(categoryTotals = {}, totalAmount = 0) {
     segment.title = `${cat}: ${formatCurrency(amt)} (${pct}%)`;
     categoryProgressBar.appendChild(segment);
 
-    // Legend item
+    // Legend item (interactive hover & click-to-filter)
     const item = document.createElement('div');
     item.className = 'legend-item';
+    item.title = 'Click to filter table by this category';
     item.innerHTML = `
       <span class="legend-dot" style="background-color: ${color}"></span>
       <span class="legend-name">${escapeHtml(cat)}</span>
       <span>${formatCurrency(amt)}</span>
       <span class="legend-pct">(${pct}%)</span>
     `;
+
+    item.addEventListener('mouseenter', () => {
+      if (donutApi) donutApi.highlightCategory(cat, amt, pct);
+    });
+    item.addEventListener('mouseleave', () => {
+      if (donutApi) donutApi.resetCenter();
+    });
+    item.addEventListener('click', () => {
+      if (donutApi) donutApi.toggleCategoryFilter(cat);
+    });
+
     categoryLegend.appendChild(item);
   });
+}
+
+/**
+ * Renders Pure SVG Spending Trend Bar Chart (7 Days or 6 Months) with tooltips & MoM delta.
+ */
+function renderTrendChart() {
+  if (!trendChartContainer) return;
+
+  const now = new Date();
+  const buckets = [];
+
+  // Calculate Month-over-Month delta for header badge
+  const curMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  const curMonthSum = expenses
+    .filter(e => e.date && e.date.startsWith(curMonthKey))
+    .reduce((s, e) => s + e.amount, 0);
+  const prevMonthSum = expenses
+    .filter(e => e.date && e.date.startsWith(prevMonthKey))
+    .reduce((s, e) => s + e.amount, 0);
+
+  if (trendDeltaBadge) {
+    if (prevMonthSum > 0) {
+      const diffPct = ((curMonthSum - prevMonthSum) / prevMonthSum) * 100;
+      const arrow = diffPct <= 0 ? '↓' : '↑';
+      trendDeltaBadge.textContent = `${arrow} ${Math.abs(diffPct).toFixed(1)}% vs last month (${formatCurrency(curMonthSum)} this mo)`;
+    } else {
+      trendDeltaBadge.textContent = `This month: ${formatCurrency(curMonthSum)}`;
+    }
+  }
+
+  if (activeChartRange === '6m') {
+    const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    for (let i = 5; i >= 0; i--) {
+      const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+      const matched = expenses.filter(e => e.date && e.date.startsWith(ym));
+      buckets.push({
+        label: shortMonths[dt.getMonth()],
+        fullLabel: `${shortMonths[dt.getMonth()]} ${dt.getFullYear()}`,
+        total: matched.reduce((s, e) => s + e.amount, 0),
+        count: matched.length,
+        isCurrent: i === 0
+      });
+    }
+  } else {
+    const shortDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (let i = 6; i >= 0; i--) {
+      const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const ymd = formatDateYMD(dt);
+      const matched = expenses.filter(e => e.date === ymd);
+      buckets.push({
+        label: i === 0 ? 'Today' : shortDays[dt.getDay()],
+        fullLabel: formatDate(ymd),
+        total: matched.reduce((s, e) => s + e.amount, 0),
+        count: matched.length,
+        isCurrent: i === 0
+      });
+    }
+  }
+
+  const svgW = 420;
+  const svgH = 148;
+  const padLeft = 42;
+  const padRight = 10;
+  const padTop = 14;
+  const padBottom = 22;
+  const chartW = svgW - padLeft - padRight;
+  const chartH = svgH - padTop - padBottom;
+
+  const rawMax = Math.max(...buckets.map(b => b.total), 0);
+  const niceMax = rawMax <= 0 ? 1000 : Math.ceil(rawMax / 500) * 500;
+
+  const formatYLabel = (val) => {
+    if (val === 0) return '₹0';
+    if (val >= 1000) return `₹${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k`;
+    return `₹${val}`;
+  };
+
+  // Horizontal gridlines (0%, 50%, 100%)
+  let gridHtml = '';
+  [0, 0.5, 1].forEach(ratio => {
+    const y = padTop + chartH * (1 - ratio);
+    const val = Math.round(niceMax * ratio);
+    gridHtml += `
+      <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${svgW - padRight}" y2="${y.toFixed(1)}" class="trend-gridline" />
+      <text x="${padLeft - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" class="trend-axis-label">${formatYLabel(val)}</text>
+    `;
+  });
+
+  const slotW = chartW / buckets.length;
+  const barW = Math.min(30, slotW * 0.56);
+  let barsHtml = '';
+
+  buckets.forEach((b, idx) => {
+    const cx = padLeft + idx * slotW + slotW / 2;
+    const bx = cx - barW / 2;
+    const barHeight = b.total > 0 ? Math.max(4, (b.total / niceMax) * chartH) : 0;
+    const by = padTop + chartH - barHeight;
+
+    barsHtml += `
+      <g class="trend-bar-group" data-label="${escapeHtml(b.fullLabel)}" data-total="${b.total}" data-count="${b.count}" data-cx="${cx.toFixed(1)}" data-top="${by.toFixed(1)}">
+        <rect x="${bx.toFixed(1)}" y="${padTop}" width="${barW.toFixed(1)}" height="${chartH}" rx="4" class="trend-bar-bg" />
+        ${barHeight > 0 ? `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${barHeight.toFixed(1)}" rx="4" class="trend-bar ${b.isCurrent ? 'current-bar' : ''}" />` : ''}
+        <text x="${cx.toFixed(1)}" y="${svgH - 5}" text-anchor="middle" class="trend-axis-label">${escapeHtml(b.label)}</text>
+      </g>
+    `;
+  });
+
+  trendChartContainer.innerHTML = `
+    <svg class="trend-svg" viewBox="0 0 ${svgW} ${svgH}" role="img" aria-label="Spending trend bar chart">
+      ${gridHtml}
+      ${barsHtml}
+    </svg>
+    <div class="trend-tooltip" id="trend-tooltip"></div>
+  `;
+
+  const tooltipEl = document.getElementById('trend-tooltip');
+  const svgEl = trendChartContainer.querySelector('.trend-svg');
+
+  trendChartContainer.querySelectorAll('.trend-bar-group').forEach(group => {
+    group.addEventListener('mouseenter', () => {
+      if (!tooltipEl || !svgEl) return;
+      const amt = parseFloat(group.dataset.total || '0');
+      const cnt = parseInt(group.dataset.count || '0', 10);
+      const cxRatio = parseFloat(group.dataset.cx) / svgW;
+      const topRatio = parseFloat(group.dataset.top) / svgH;
+      const rect = svgEl.getBoundingClientRect();
+
+      tooltipEl.textContent = `${group.dataset.label}: ${formatCurrency(amt)} (${cnt} item${cnt === 1 ? '' : 's'})`;
+      tooltipEl.style.left = `${(cxRatio * rect.width).toFixed(1)}px`;
+      tooltipEl.style.top = `${Math.max(18, topRatio * rect.height - 6).toFixed(1)}px`;
+      tooltipEl.classList.add('visible');
+    });
+
+    group.addEventListener('mouseleave', () => {
+      if (tooltipEl) tooltipEl.classList.remove('visible');
+    });
+  });
+}
+
+// ==========================================================================
+// Recurring Expenses & Bill Reminders Engine
+// ==========================================================================
+
+/**
+ * Computes day difference from today (YYYY-MM-DD) to targetDate (negative = overdue).
+ */
+function getDaysUntilDate(targetYMD) {
+  const todayParts = getTodayYMD().split('-').map(Number);
+  const targetParts = (targetYMD || getTodayYMD()).split('-').map(Number);
+  const t1 = new Date(todayParts[0], todayParts[1] - 1, todayParts[2]);
+  const t2 = new Date(targetParts[0], targetParts[1] - 1, targetParts[2]);
+  return Math.round((t2 - t1) / 86400000);
+}
+
+/**
+ * Auto-logs due recurring bills on app load if user enabled auto-log preference.
+ */
+function processAutoLogDueBills() {
+  if (!autoLogRecurring) return;
+  const todayYMD = getTodayYMD();
+  let loggedCount = 0;
+
+  recurringRules.forEach(rule => {
+    if (!rule.active) return;
+    let safety = 0;
+    while (rule.nextDueDate && rule.nextDueDate <= todayYMD && safety < 12) {
+      expenses.unshift({
+        id: 'exp-' + Date.now() + '-' + Math.floor(Math.random() * 10000),
+        title: rule.title,
+        amount: rule.amount,
+        category: rule.category,
+        date: rule.nextDueDate,
+        recurring: rule.frequency
+      });
+      rule.nextDueDate = advanceDateByFrequency(rule.nextDueDate, rule.frequency);
+      loggedCount++;
+      safety++;
+    }
+  });
+
+  if (loggedCount > 0) {
+    saveExpenses();
+    saveRecurringRules();
+    showToast({
+      message: `Auto-logged ${loggedCount} due recurring expense${loggedCount === 1 ? '' : 's'}.`,
+      type: 'info',
+      duration: 5500
+    });
+  }
+}
+
+/**
+ * Evaluates active recurring rules, updates header badge & Upcoming Bill Reminder strip.
+ */
+function evaluateRecurringReminders() {
+  const activeRules = recurringRules.filter(r => r.active);
+  if (recurringCountBadge) {
+    recurringCountBadge.textContent = activeRules.length;
+  }
+
+  if (!recurringReminderBar) return;
+
+  // Find due now or upcoming within next 7 days
+  const upcoming = activeRules
+    .map(r => ({ rule: r, daysLeft: getDaysUntilDate(r.nextDueDate) }))
+    .filter(item => item.daysLeft <= 7)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  if (upcoming.length === 0) {
+    recurringReminderBar.style.display = 'none';
+    return;
+  }
+
+  const next = upcoming[0];
+  recurringReminderBar.style.display = 'flex';
+  recurringReminderBar.classList.toggle('reminder-due', next.daysLeft <= 0);
+
+  let statusLead = '';
+  if (next.daysLeft < 0) {
+    statusLead = `Overdue by ${Math.abs(next.daysLeft)} day${Math.abs(next.daysLeft) === 1 ? '' : 's'}`;
+  } else if (next.daysLeft === 0) {
+    statusLead = 'Due Today';
+  } else {
+    statusLead = `Due in ${next.daysLeft} day${next.daysLeft === 1 ? '' : 's'}`;
+  }
+
+  if (reminderTitleEl) {
+    reminderTitleEl.textContent = `${statusLead}: ${next.rule.title} (${formatCurrency(next.rule.amount)})`;
+  }
+  if (reminderDescEl) {
+    const extraCount = upcoming.length - 1;
+    const freqLabel = next.rule.frequency === 'weekly' ? 'Weekly' : 'Monthly';
+    reminderDescEl.textContent = `${freqLabel} • ${next.rule.category} • Scheduled ${formatDate(next.rule.nextDueDate)}${extraCount > 0 ? ` (+${extraCount} more upcoming)` : ''}`;
+  }
+  if (reminderQuickLogBtn) {
+    reminderQuickLogBtn.dataset.ruleId = next.rule.id;
+  }
+}
+
+/**
+ * Immediately logs a recurring bill as an expense and advances its next due date (with Undo).
+ */
+function logRecurringRuleNow(ruleId) {
+  const rule = recurringRules.find(r => r.id === ruleId);
+  if (!rule) return;
+
+  const prevDue = rule.nextDueDate;
+  const newExp = {
+    id: 'exp-' + Date.now(),
+    title: rule.title,
+    amount: rule.amount,
+    category: rule.category,
+    date: getTodayYMD(),
+    recurring: rule.frequency
+  };
+
+  expenses.unshift(newExp);
+  rule.nextDueDate = advanceDateByFrequency(
+    prevDue < getTodayYMD() ? getTodayYMD() : prevDue,
+    rule.frequency
+  );
+
+  saveExpenses();
+  saveRecurringRules();
+  render();
+  if (recurringModal && recurringModal.style.display !== 'none') {
+    renderRecurringModalList();
+  }
+
+  showToast({
+    message: `Logged "${rule.title}" (${formatCurrency(rule.amount)}). Next due ${formatDate(rule.nextDueDate)}.`,
+    type: 'success',
+    onUndo: () => {
+      expenses = expenses.filter(e => e.id !== newExp.id);
+      rule.nextDueDate = prevDue;
+      saveExpenses();
+      saveRecurringRules();
+      render();
+      if (recurringModal && recurringModal.style.display !== 'none') {
+        renderRecurringModalList();
+      }
+      showToast({ message: `Reverted "${rule.title}".`, type: 'info', duration: 2500 });
+    }
+  });
+}
+
+function renderRecurringModalList() {
+  if (!recurringListContainer) return;
+
+  if (autoLogRecurringToggle) {
+    autoLogRecurringToggle.checked = autoLogRecurring;
+  }
+
+  if (recurringRules.length === 0) {
+    recurringListContainer.innerHTML = '<div class="recurring-empty-msg">No recurring bills scheduled yet. Select <strong>Weekly</strong> or <strong>Monthly</strong> when adding an expense to create one!</div>';
+    return;
+  }
+
+  recurringListContainer.innerHTML = recurringRules.map(rule => {
+    const daysLeft = getDaysUntilDate(rule.nextDueDate);
+    let pillClass = 'scheduled';
+    let pillText = `Due ${formatDate(rule.nextDueDate)}`;
+
+    if (!rule.active) {
+      pillClass = 'scheduled';
+      pillText = 'Paused';
+    } else if (daysLeft < 0) {
+      pillClass = 'due-now';
+      pillText = `Overdue (${Math.abs(daysLeft)}d)`;
+    } else if (daysLeft === 0) {
+      pillClass = 'due-now';
+      pillText = 'Due Today';
+    } else if (daysLeft <= 7) {
+      pillClass = 'due-soon';
+      pillText = `Due in ${daysLeft}d`;
+    }
+
+    const freqLabel = rule.frequency === 'weekly' ? 'Weekly' : 'Monthly';
+
+    return `
+      <div class="recurring-item-card ${rule.active ? '' : 'paused'}" data-rule-id="${rule.id}">
+        <div class="recurring-item-main">
+          <div class="recurring-item-title">
+            <span>${escapeHtml(rule.title)}</span>
+            <span class="recurring-status-pill ${pillClass}">${pillText}</span>
+          </div>
+          <div class="recurring-item-meta">
+            <strong>${formatCurrency(rule.amount)}</strong> • ${escapeHtml(rule.category)} • 🔁 ${freqLabel}
+          </div>
+        </div>
+        <div class="recurring-item-actions">
+          <button type="button" class="action-btn edit-action rec-log-btn" data-id="${rule.id}" title="Log this expense today">✓ Log</button>
+          <button type="button" class="action-btn rec-toggle-btn" data-id="${rule.id}" title="${rule.active ? 'Pause reminders' : 'Resume reminders'}">${rule.active ? '⏸' : '▶'}</button>
+          <button type="button" class="action-btn delete-action rec-delete-btn" data-id="${rule.id}" title="Delete recurring schedule">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openRecurringModal() {
+  if (!recurringModal) return;
+  renderRecurringModalList();
+  recurringModal.style.display = 'flex';
+}
+
+function closeRecurringModal() {
+  if (!recurringModal) return;
+  recurringModal.style.display = 'none';
 }
 
 /**
  * Synchronizes the category filter dropdown options with all existing categories.
  */
 function updateCategoryFilterOptions() {
-  const currentVal = filterCategorySelect ? filterCategorySelect.value : 'all';
+  let currentVal = filterCategorySelect ? filterCategorySelect.value : 'all';
   const categories = Array.from(new Set(expenses.map(item => item.category).filter(Boolean))).sort();
+
+  if (currentVal !== 'all' && !categories.includes(currentVal)) {
+    currentVal = 'all';
+  }
 
   if (filterCategorySelect) {
     filterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
@@ -697,6 +1421,7 @@ function updateCategoryFilterOptions() {
       }
       filterCategorySelect.appendChild(opt);
     });
+    filterCategorySelect.value = currentVal;
   }
 
   // Update Custom Dropdown Menu
@@ -888,14 +1613,21 @@ function renderCalendar() {
  * Dynamically updates the list view without reloading the page.
  */
 function render() {
-  const visibleExpenses = getFilteredAndSortedExpenses();
-
-  // Sync category filter options, sort display, and suggestions
+  // Sync category filter options first so removed categories revert cleanly to 'all'
   updateCategoryFilterOptions();
   updateSortByDisplay();
   renderCategoryDropdown(expenseCategoryInput ? expenseCategoryInput.value : '');
+  evaluateRecurringReminders();
 
-  // Update Summary Dashboards
+  const visibleExpenses = getFilteredAndSortedExpenses();
+
+  // Prune any stale selections not present in expenses
+  const validIds = new Set(expenses.map(item => item.id));
+  for (const id of Array.from(selectedExpenseIds)) {
+    if (!validIds.has(id)) selectedExpenseIds.delete(id);
+  }
+
+  // Update Summary Dashboards & Charts
   updateSummaryCards(visibleExpenses);
 
   // Update record counter badge
@@ -905,9 +1637,9 @@ function render() {
   expenseListBody.innerHTML = '';
 
   if (visibleExpenses.length === 0) {
-    // Show empty state
     expensesTable.style.display = 'none';
     emptyState.style.display = 'block';
+    updateBulkSelectionUI([]);
 
     if (expenses.length === 0) {
       emptyStateMessage.textContent = 'No expenses recorded yet. Fill out the form to add one!';
@@ -921,16 +1653,24 @@ function render() {
   expensesTable.style.display = 'table';
   emptyState.style.display = 'none';
 
-  // Render rows dynamically with mobile-responsive data-label attributes
+  // Render rows dynamically with bulk checkbox & mobile data-label attributes
   visibleExpenses.forEach(item => {
     const row = document.createElement('tr');
     row.dataset.id = item.id;
+    const isChecked = selectedExpenseIds.has(item.id);
+    if (isChecked) row.classList.add('row-selected');
 
     const catBadgeClass = getCategoryClass(item.category);
+    const recurTagHtml = (item.recurring && item.recurring !== 'none')
+      ? `<span class="recur-tag" title="Recurring ${escapeHtml(item.recurring)} expense">🔁 ${item.recurring === 'weekly' ? 'Weekly' : 'Monthly'}</span>`
+      : '';
 
     row.innerHTML = `
+      <td class="checkbox-cell" data-label="Select">
+        <input type="checkbox" class="custom-checkbox row-select-checkbox" data-id="${item.id}" aria-label="Select ${escapeHtml(item.title)}" ${isChecked ? 'checked' : ''}>
+      </td>
       <td class="expense-date-cell" data-label="Date">${formatDate(item.date)}</td>
-      <td class="expense-title-cell" data-label="Title">${escapeHtml(item.title)}</td>
+      <td class="expense-title-cell" data-label="Title">${escapeHtml(item.title)}${recurTagHtml}</td>
       <td data-label="Category">
         <span class="category-pill ${catBadgeClass}">
           ${escapeHtml(item.category)}
@@ -951,6 +1691,45 @@ function render() {
 
     expenseListBody.appendChild(row);
   });
+
+  updateBulkSelectionUI(visibleExpenses);
+}
+
+/**
+ * Updates bulk action toolbar and Select All checkbox state (checked / indeterminate).
+ */
+function updateBulkSelectionUI(visibleExpenses = []) {
+  const selectedCount = selectedExpenseIds.size;
+
+  if (selectAllCheckbox) {
+    if (visibleExpenses.length === 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else {
+      const visibleSelectedCount = visibleExpenses.filter(e => selectedExpenseIds.has(e.id)).length;
+      selectAllCheckbox.checked = visibleSelectedCount === visibleExpenses.length;
+      selectAllCheckbox.indeterminate = visibleSelectedCount > 0 && visibleSelectedCount < visibleExpenses.length;
+    }
+  }
+
+  if (!bulkActionBar) return;
+
+  if (selectedCount === 0) {
+    bulkActionBar.style.display = 'none';
+    return;
+  }
+
+  const selectedSum = expenses
+    .filter(e => selectedExpenseIds.has(e.id))
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  bulkActionBar.style.display = 'flex';
+  if (bulkSelectedText) {
+    bulkSelectedText.textContent = `${selectedCount} item${selectedCount === 1 ? '' : 's'} selected`;
+  }
+  if (bulkSelectedTotal) {
+    bulkSelectedTotal.textContent = `Total: ${formatCurrency(selectedSum)}`;
+  }
 }
 
 /**
@@ -963,8 +1742,17 @@ function escapeHtml(str) {
 }
 
 // ==========================================================================
-// 9. Add, Edit, and Delete Handlers
+// 9. Add, Edit, Delete, Undo & Bulk Action Handlers
 // ==========================================================================
+
+function setRecurrenceSelector(freq = 'none') {
+  if (expenseRecurrenceInput) expenseRecurrenceInput.value = freq;
+  if (recurrencePills) {
+    recurrencePills.querySelectorAll('.recur-pill-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.freq === freq);
+    });
+  }
+}
 
 /**
  * Handles Form Submission (Add or Update).
@@ -980,6 +1768,7 @@ function handleFormSubmit(e) {
   const amount = parseFloat(expenseAmountInput.value);
   const category = expenseCategoryInput.value.trim();
   const date = expenseDateInput.value;
+  const recurrence = expenseRecurrenceInput ? expenseRecurrenceInput.value : 'none';
 
   if (isEditing && currentEditId) {
     // Update existing expense
@@ -994,6 +1783,9 @@ function handleFormSubmit(e) {
       };
     }
     resetFormState();
+    saveExpenses();
+    render();
+    showToast({ message: `Updated "${title}" (${formatCurrency(amount)}).`, type: 'success' });
   } else {
     // Add new expense
     const newExpense = {
@@ -1001,14 +1793,33 @@ function handleFormSubmit(e) {
       title,
       amount,
       category,
-      date
+      date,
+      recurring: recurrence !== 'none' ? recurrence : undefined
     };
     expenses.unshift(newExpense);
-    resetFormState();
-  }
 
-  saveExpenses();
-  render();
+    let toastMsg = `Added "${title}" (${formatCurrency(amount)}).`;
+
+    if (recurrence === 'weekly' || recurrence === 'monthly') {
+      const nextDue = advanceDateByFrequency(date, recurrence);
+      recurringRules.unshift({
+        id: 'rec-' + Date.now(),
+        title,
+        amount,
+        category,
+        frequency: recurrence,
+        nextDueDate: nextDue,
+        active: true
+      });
+      saveRecurringRules();
+      toastMsg = `Added "${title}" & scheduled ${recurrence} reminder (Next: ${formatDate(nextDue)}).`;
+    }
+
+    resetFormState();
+    saveExpenses();
+    render();
+    showToast({ message: toastMsg, type: 'success' });
+  }
 }
 
 /**
@@ -1028,6 +1839,9 @@ function handleEdit(id) {
   expenseCategoryInput.value = expenseToEdit.category;
   expenseDateInput.value = expenseToEdit.date;
 
+  // Hide recurrence pills while editing single logged record
+  if (recurrenceFormGroup) recurrenceFormGroup.style.display = 'none';
+
   // Update UI indicators
   formHeading.textContent = 'Edit Expense';
   submitBtnText.textContent = 'Update Expense';
@@ -1042,22 +1856,103 @@ function handleEdit(id) {
 }
 
 /**
- * Deletes an expense by id with user confirmation.
+ * Deletes a single expense immediately with a non-blocking 5s Undo toast.
  */
 function handleDelete(id) {
-  const target = expenses.find(item => item.id === id);
-  if (!target) return;
+  const index = expenses.findIndex(item => item.id === id);
+  if (index === -1) return;
 
-  const confirmed = confirm(`Are you sure you want to delete "${target.title}"?`);
-  if (!confirmed) return;
+  const deletedSnapshot = { ...expenses[index] };
 
-  // If deleting the item currently being edited, cancel edit mode
   if (isEditing && currentEditId === id) {
     resetFormState();
   }
 
-  expenses = expenses.filter(item => item.id !== id);
+  selectedExpenseIds.delete(id);
+  expenses.splice(index, 1);
   saveExpenses();
+  render();
+
+  showToast({
+    message: `Deleted "${deletedSnapshot.title}" (${formatCurrency(deletedSnapshot.amount)}).`,
+    type: 'danger',
+    duration: 5000,
+    onUndo: () => {
+      // Restore item to its original position
+      const insertAt = Math.min(index, expenses.length);
+      expenses.splice(insertAt, 0, deletedSnapshot);
+      saveExpenses();
+      render();
+      showToast({
+        message: `Restored "${deletedSnapshot.title}".`,
+        type: 'success',
+        duration: 2800
+      });
+    }
+  });
+}
+
+/**
+ * Deletes all currently selected expenses with a single Undo toast restoring all items.
+ */
+function handleBulkDelete() {
+  if (selectedExpenseIds.size === 0) return;
+
+  const snapshots = [];
+  expenses.forEach((item, index) => {
+    if (selectedExpenseIds.has(item.id)) {
+      snapshots.push({ item: { ...item }, index });
+    }
+  });
+
+  if (snapshots.length === 0) return;
+
+  if (isEditing && selectedExpenseIds.has(currentEditId)) {
+    resetFormState();
+  }
+
+  expenses = expenses.filter(item => !selectedExpenseIds.has(item.id));
+  selectedExpenseIds.clear();
+  saveExpenses();
+  render();
+
+  const count = snapshots.length;
+  showToast({
+    message: `Deleted ${count} selected expense${count === 1 ? '' : 's'}.`,
+    type: 'danger',
+    duration: 5000,
+    onUndo: () => {
+      // Restore in ascending index order so original positions are preserved
+      snapshots.sort((a, b) => a.index - b.index).forEach(({ item, index }) => {
+        const pos = Math.min(index, expenses.length);
+        expenses.splice(pos, 0, item);
+      });
+      saveExpenses();
+      render();
+      showToast({
+        message: `Restored ${count} deleted expense${count === 1 ? '' : 's'}.`,
+        type: 'success',
+        duration: 2800
+      });
+    }
+  });
+}
+
+/**
+ * Exports all selected expenses directly to a PDF audit report.
+ */
+function handleBulkExportPDF() {
+  if (selectedExpenseIds.size === 0) return;
+  const visibleSelected = getFilteredAndSortedExpenses().filter(e => selectedExpenseIds.has(e.id));
+  const toExport = visibleSelected.length > 0
+    ? visibleSelected
+    : expenses.filter(e => selectedExpenseIds.has(e.id));
+
+  exportExpensesListToPDF(toExport, 'Selected');
+}
+
+function clearBulkSelection() {
+  selectedExpenseIds.clear();
   render();
 }
 
@@ -1069,6 +1964,8 @@ function resetFormState() {
   currentEditId = null;
   expenseForm.reset();
   expenseIdInput.value = '';
+  setRecurrenceSelector('none');
+  if (recurrenceFormGroup) recurrenceFormGroup.style.display = 'flex';
 
   formHeading.textContent = 'Add New Expense';
   submitBtnText.textContent = 'Add Expense';
@@ -1084,11 +1981,7 @@ function resetFormState() {
  * Sets today's date in YYYY-MM-DD on the date input.
  */
 function setDefaultDate() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  expenseDateInput.value = `${yyyy}-${mm}-${dd}`;
+  expenseDateInput.value = getTodayYMD();
 }
 
 /**
@@ -1110,24 +2003,43 @@ function resetFilters() {
   updateSortByDisplay();
 
   render();
+  showToast({ message: 'All filters reset.', type: 'info', duration: 2200 });
 }
 
 /**
- * Deletes all stored expense records after confirmation.
+ * Opens confirmation modal to clear all stored expenses (with Undo backup!).
  */
 function handleClearAll() {
   if (expenses.length === 0) {
-    alert('There are no expenses to clear.');
+    showToast({ message: 'There are no expenses to clear.', type: 'info', duration: 3000 });
     return;
   }
 
-  const confirmed = confirm('Are you sure you want to delete ALL expenses? This cannot be undone.');
-  if (confirmed) {
-    expenses = [];
-    saveExpenses();
-    resetFormState();
-    render();
-  }
+  showConfirmDialog({
+    title: 'Clear All Expenses?',
+    message: `You are about to remove all ${expenses.length} recorded expense${expenses.length === 1 ? '' : 's'}. You can undo this immediately after confirming.`,
+    confirmLabel: 'Clear All',
+    onConfirm: () => {
+      const backup = [...expenses];
+      expenses = [];
+      selectedExpenseIds.clear();
+      saveExpenses();
+      resetFormState();
+      render();
+
+      showToast({
+        message: `Cleared all ${backup.length} expense${backup.length === 1 ? '' : 's'}.`,
+        type: 'danger',
+        duration: 5500,
+        onUndo: () => {
+          expenses = backup;
+          saveExpenses();
+          render();
+          showToast({ message: `Restored all ${backup.length} expenses.`, type: 'success', duration: 2800 });
+        }
+      });
+    }
+  });
 }
 
 /**
@@ -1427,12 +2339,11 @@ function generateExpensePDF(expensesList, summary) {
 }
 
 /**
- * Handles exporting visible expenses as a downloadable PDF document.
+ * Shared helper that builds and triggers a client-side PDF download for any expense array.
  */
-function handleExportPDF() {
-  const visible = getFilteredAndSortedExpenses();
-  if (visible.length === 0) {
-    alert('No expenses to export. Add expenses or adjust your filter criteria.');
+function exportExpensesListToPDF(listToExport, label = 'Expenses') {
+  if (!listToExport || listToExport.length === 0) {
+    showToast({ message: 'No expenses to export. Add expenses or adjust your filter criteria.', type: 'warning' });
     return;
   }
 
@@ -1441,8 +2352,7 @@ function handleExportPDF() {
   const thisMonthExpenses = expenses.filter(item => item.date && item.date.startsWith(currentMonthKey));
   const thisMonthSpent = thisMonthExpenses.reduce((sum, item) => sum + item.amount, 0);
 
-  // Determine top category from visible expenses
-  const catTotals = visible.reduce((acc, item) => {
+  const catTotals = listToExport.reduce((acc, item) => {
     acc[item.category] = (acc[item.category] || 0) + item.amount;
     return acc;
   }, {});
@@ -1457,25 +2367,39 @@ function handleExportPDF() {
   }
 
   const summary = {
-    totalAmount: visible.reduce((sum, item) => sum + item.amount, 0),
-    count: visible.length,
+    totalAmount: listToExport.reduce((sum, item) => sum + item.amount, 0),
+    count: listToExport.length,
     monthlyBudget: monthlyBudget,
     thisMonthSpent: thisMonthSpent,
     topCategory: topCat,
     topCategoryAmount: topAmt,
-    exportDate: now.toISOString().slice(0, 10)
+    exportDate: formatDateYMD(now)
   };
 
-  const pdfBytes = generateExpensePDF(visible, summary);
+  const pdfBytes = generateExpensePDF(listToExport, summary);
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `Expense_Report_${summary.exportDate}.pdf`;
+  link.download = `Expense_Report_${label}_${summary.exportDate}.pdf`.replace(/_Expenses_/, '_');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+
+  showToast({
+    message: `Exported ${listToExport.length} expense${listToExport.length === 1 ? '' : 's'} to PDF.`,
+    type: 'success',
+    duration: 3200
+  });
+}
+
+/**
+ * Handles exporting visible expenses as a downloadable PDF document.
+ */
+function handleExportPDF() {
+  const visible = getFilteredAndSortedExpenses();
+  exportExpensesListToPDF(visible, 'Expenses');
 }
 
 // ==========================================================================
@@ -1489,10 +2413,23 @@ function setupEventListeners() {
   // Cancel edit button
   cancelBtn.addEventListener('click', resetFormState);
 
-  // Keyboard shortcut: Escape cancels edit mode, closes calendar/budget modals, or closes dropdowns
+  // Recurrence pill selection in Add Expense form
+  if (recurrencePills) {
+    recurrencePills.addEventListener('click', (e) => {
+      const btn = e.target.closest('.recur-pill-btn');
+      if (!btn) return;
+      setRecurrenceSelector(btn.dataset.freq);
+    });
+  }
+
+  // Keyboard shortcut: Escape closes open modals, dropdowns, or cancels edit mode
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (budgetModal && budgetModal.style.display !== 'none') {
+      if (confirmModal && confirmModal.style.display !== 'none') {
+        closeConfirmModal();
+      } else if (recurringModal && recurringModal.style.display !== 'none') {
+        closeRecurringModal();
+      } else if (budgetModal && budgetModal.style.display !== 'none') {
         closeBudgetModal();
       } else if (customCalendarModal && customCalendarModal.style.display !== 'none') {
         closeCalendarModal();
@@ -1765,7 +2702,7 @@ function setupEventListeners() {
     });
   });
 
-  // Table row actions using Event Delegation
+  // Table row actions & bulk selection checkboxes using Event Delegation
   expenseListBody.addEventListener('click', (e) => {
     const editBtn = e.target.closest('.edit-action');
     const deleteBtn = e.target.closest('.delete-action');
@@ -1778,6 +2715,151 @@ function setupEventListeners() {
       handleDelete(id);
     }
   });
+
+  expenseListBody.addEventListener('change', (e) => {
+    const cb = e.target.closest('.row-select-checkbox');
+    if (!cb) return;
+    const id = cb.dataset.id;
+    const row = cb.closest('tr');
+    if (cb.checked) {
+      selectedExpenseIds.add(id);
+      if (row) row.classList.add('row-selected');
+    } else {
+      selectedExpenseIds.delete(id);
+      if (row) row.classList.remove('row-selected');
+    }
+    updateBulkSelectionUI(getFilteredAndSortedExpenses());
+  });
+
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', () => {
+      const visible = getFilteredAndSortedExpenses();
+      if (selectAllCheckbox.checked) {
+        visible.forEach(item => selectedExpenseIds.add(item.id));
+      } else {
+        visible.forEach(item => selectedExpenseIds.delete(item.id));
+      }
+      render();
+    });
+  }
+
+  // Bulk Action Toolbar Buttons
+  if (bulkExportPdfBtn) {
+    bulkExportPdfBtn.addEventListener('click', handleBulkExportPDF);
+  }
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', handleBulkDelete);
+  }
+  if (bulkClearBtn) {
+    bulkClearBtn.addEventListener('click', clearBulkSelection);
+  }
+
+  // Chart Timeframe Toggle (7 Days vs 6 Months)
+  chartTabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      chartTabButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeChartRange = btn.dataset.range || '7d';
+      renderTrendChart();
+    });
+  });
+
+  // Recurring Expenses & Bill Reminders Listeners
+  if (openRecurringBtn) {
+    openRecurringBtn.addEventListener('click', openRecurringModal);
+  }
+  if (reminderManageBtn) {
+    reminderManageBtn.addEventListener('click', openRecurringModal);
+  }
+  if (reminderQuickLogBtn) {
+    reminderQuickLogBtn.addEventListener('click', () => {
+      const ruleId = reminderQuickLogBtn.dataset.ruleId;
+      if (ruleId) logRecurringRuleNow(ruleId);
+    });
+  }
+  if (closeRecurringModalBtn) {
+    closeRecurringModalBtn.addEventListener('click', closeRecurringModal);
+  }
+  if (doneRecurringBtn) {
+    doneRecurringBtn.addEventListener('click', closeRecurringModal);
+  }
+  if (recurringModal) {
+    recurringModal.addEventListener('click', (e) => {
+      if (e.target === recurringModal) closeRecurringModal();
+    });
+  }
+  if (autoLogRecurringToggle) {
+    autoLogRecurringToggle.addEventListener('change', () => {
+      saveAutoLogPreference(autoLogRecurringToggle.checked);
+      showToast({
+        message: autoLogRecurring
+          ? 'Auto-log enabled: due recurring bills will log automatically.'
+          : 'Auto-log disabled: you will see manual due bill reminders.',
+        type: 'info',
+        duration: 3200
+      });
+    });
+  }
+  if (recurringListContainer) {
+    recurringListContainer.addEventListener('click', (e) => {
+      const logBtn = e.target.closest('.rec-log-btn');
+      const toggleBtn = e.target.closest('.rec-toggle-btn');
+      const deleteBtn = e.target.closest('.rec-delete-btn');
+
+      if (logBtn) {
+        logRecurringRuleNow(logBtn.dataset.id);
+      } else if (toggleBtn) {
+        const rule = recurringRules.find(r => r.id === toggleBtn.dataset.id);
+        if (!rule) return;
+        rule.active = !rule.active;
+        saveRecurringRules();
+        renderRecurringModalList();
+        evaluateRecurringReminders();
+        showToast({
+          message: rule.active ? `Resumed "${rule.title}" reminders.` : `Paused "${rule.title}" reminders.`,
+          type: 'info',
+          duration: 2600
+        });
+      } else if (deleteBtn) {
+        const idx = recurringRules.findIndex(r => r.id === deleteBtn.dataset.id);
+        if (idx === -1) return;
+        const removed = { ...recurringRules[idx] };
+        recurringRules.splice(idx, 1);
+        saveRecurringRules();
+        renderRecurringModalList();
+        evaluateRecurringReminders();
+
+        showToast({
+          message: `Removed recurring schedule "${removed.title}".`,
+          type: 'danger',
+          duration: 5000,
+          onUndo: () => {
+            recurringRules.splice(Math.min(idx, recurringRules.length), 0, removed);
+            saveRecurringRules();
+            renderRecurringModalList();
+            evaluateRecurringReminders();
+            showToast({ message: `Restored "${removed.title}".`, type: 'success', duration: 2500 });
+          }
+        });
+      }
+    });
+  }
+
+  // Custom Confirmation Modal Listeners
+  if (closeConfirmModalBtn) closeConfirmModalBtn.addEventListener('click', closeConfirmModal);
+  if (cancelConfirmBtn) cancelConfirmBtn.addEventListener('click', closeConfirmModal);
+  if (okConfirmBtn) {
+    okConfirmBtn.addEventListener('click', () => {
+      const cb = activeConfirmCallback;
+      closeConfirmModal();
+      if (typeof cb === 'function') cb();
+    });
+  }
+  if (confirmModal) {
+    confirmModal.addEventListener('click', (e) => {
+      if (e.target === confirmModal) closeConfirmModal();
+    });
+  }
 
   // Filter & Search Controls
   searchInput.addEventListener('input', render);
@@ -1830,6 +2912,7 @@ function initApp() {
   initTheme();
   setDefaultDate();
   setupEventListeners();
+  processAutoLogDueBills();
   render();
 }
 

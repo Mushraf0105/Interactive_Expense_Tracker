@@ -21,6 +21,11 @@
         </div>
       </div>
       <div class="header-actions">
+        <button id="open-recurring-btn" class="header-pill-btn" type="button" aria-label="Manage recurring expenses and bill reminders" title="Manage recurring bills">
+          <span>🔁</span>
+          <span>Recurring Bills</span>
+          <span class="pill-count-badge" id="recurring-count-badge">0</span>
+        </button>
         <button id="theme-toggle-btn" class="theme-toggle-btn" type="button" aria-label="Toggle light or dark theme" title="Toggle theme">
           <span class="theme-icon" id="theme-icon">🌙</span>
           <span class="theme-label" id="theme-label">Dark Mode</span>
@@ -94,17 +99,61 @@
       </div>
     </section>
 
-    <!-- Visual Category Spending Breakdown -->
-    <section class="card category-breakdown-card" aria-label="Category Spending Breakdown">
-      <div class="category-breakdown-header">
-        <h4>Category Spending Breakdown</h4>
-        <span class="breakdown-subtitle" id="breakdown-subtitle">Distribution across recorded expenses</span>
+    <!-- Upcoming Recurring Bill Reminders Strip -->
+    <section class="card reminder-banner-card" id="recurring-reminder-bar" style="display: none;" aria-label="Recurring Bill Reminders">
+      <div class="reminder-banner-left">
+        <span class="reminder-bell">🔔</span>
+        <div class="reminder-text-group">
+          <strong id="reminder-title">Upcoming Bill Due</strong>
+          <span id="reminder-desc">You have recurring bills due soon</span>
+        </div>
       </div>
-      <div class="progress-bar-container" id="category-progress-bar">
-        <!-- Colored segments injected dynamically by script.js -->
+      <div class="reminder-banner-actions">
+        <button type="button" id="reminder-quick-log-btn" class="btn btn-sm btn-primary">✓ Log Next Due</button>
+        <button type="button" id="reminder-manage-btn" class="btn btn-sm btn-outline">Manage All</button>
       </div>
-      <div class="category-legend" id="category-legend">
-        <!-- Category tags injected dynamically by script.js -->
+    </section>
+
+    <!-- Visual Analytics & Charts (100% Pure SVG) -->
+    <section class="analytics-grid" aria-label="Visual Analytics & Charts">
+      <!-- Category Distribution Donut & Breakdown -->
+      <div class="card category-breakdown-card">
+        <div class="category-breakdown-header">
+          <div>
+            <h4>Category Distribution</h4>
+            <span class="breakdown-subtitle" id="breakdown-subtitle">Hover slices for details</span>
+          </div>
+        </div>
+        <div class="donut-layout">
+          <div class="donut-chart-wrap" id="category-donut-container" aria-label="Category Donut Chart">
+            <!-- Pure SVG Donut Chart injected dynamically by script.js -->
+          </div>
+          <div class="donut-details-wrap">
+            <div class="progress-bar-container" id="category-progress-bar">
+              <!-- Colored segments injected dynamically by script.js -->
+            </div>
+            <div class="category-legend" id="category-legend">
+              <!-- Category tags injected dynamically by script.js -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spending Trend Bar Chart -->
+      <div class="card trend-chart-card">
+        <div class="category-breakdown-header">
+          <div>
+            <h4>Spending Trend</h4>
+            <span class="breakdown-subtitle" id="trend-delta-badge">Daily & monthly overview</span>
+          </div>
+          <div class="chart-mode-toggle" role="group" aria-label="Chart time range">
+            <button type="button" class="chart-tab-btn active" data-range="7d">7 Days</button>
+            <button type="button" class="chart-tab-btn" data-range="6m">6 Months</button>
+          </div>
+        </div>
+        <div class="trend-chart-container" id="trend-chart-container" aria-label="Spending Trend Bar Chart">
+          <!-- Pure SVG Bar Chart injected dynamically by script.js -->
+        </div>
       </div>
     </section>
 
@@ -187,6 +236,16 @@
                 <button type="button" class="calendar-btn" aria-label="Choose date">📅</button>
               </div>
               <small class="error-msg" id="date-error"></small>
+            </div>
+
+            <div class="form-group" id="recurrence-form-group">
+              <label>Repeat / Reminder</label>
+              <input type="hidden" id="expense-recurrence" value="none">
+              <div class="recurrence-pills" id="recurrence-pills" role="group" aria-label="Recurring frequency">
+                <button type="button" class="recur-pill-btn active" data-freq="none">One-time</button>
+                <button type="button" class="recur-pill-btn" data-freq="weekly">🔁 Weekly</button>
+                <button type="button" class="recur-pill-btn" data-freq="monthly">🔁 Monthly</button>
+              </div>
             </div>
 
             <div class="form-actions">
@@ -324,11 +383,34 @@
             </div>
           </div>
 
+          <!-- Bulk Actions Contextual Toolbar -->
+          <div class="bulk-action-bar" id="bulk-action-bar" style="display: none;">
+            <div class="bulk-info">
+              <span class="bulk-count-dot"></span>
+              <span id="bulk-selected-text">0 selected</span>
+              <span class="bulk-sum-badge" id="bulk-selected-total">₹0.00</span>
+            </div>
+            <div class="bulk-buttons">
+              <button type="button" id="bulk-export-pdf-btn" class="btn btn-sm btn-outline">
+                📄 Export Selected
+              </button>
+              <button type="button" id="bulk-delete-btn" class="btn btn-sm btn-danger-outline">
+                🗑️ Delete Selected
+              </button>
+              <button type="button" id="bulk-clear-btn" class="btn btn-sm btn-secondary">
+                ✕ Clear
+              </button>
+            </div>
+          </div>
+
           <!-- Expenses List Container -->
           <div class="table-container">
             <table class="expenses-table" id="expenses-table">
               <thead>
                 <tr>
+                  <th class="select-all-cell">
+                    <input type="checkbox" id="select-all-checkbox" class="custom-checkbox" aria-label="Select all visible expenses" title="Select all visible expenses">
+                  </th>
                   <th>Date</th>
                   <th>Title</th>
                   <th>Category</th>
@@ -405,6 +487,47 @@
       </div>
     </div>
   </div>
+
+  <!-- Recurring Expenses & Bill Reminders Modal -->
+  <div id="recurring-modal" class="calendar-modal-backdrop" style="display: none;">
+    <div class="calendar-modal-content recurring-modal-content" role="dialog" aria-modal="true" aria-label="Recurring Expenses & Bill Reminders">
+      <div class="cal-header">
+        <h3 class="modal-title">🔁 Recurring Bills & Reminders</h3>
+        <button type="button" id="close-recurring-modal-btn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="recurring-modal-toolbar">
+        <p class="modal-desc" style="margin-bottom: 0;">Track weekly or monthly subscriptions & fixed bills. Use <strong>Repeat / Reminder</strong> when adding an expense to create new schedules.</p>
+        <label class="auto-log-label" title="Automatically record overdue/today recurring bills on app load">
+          <input type="checkbox" id="auto-log-recurring-toggle" class="custom-checkbox">
+          <span>Auto-log when due</span>
+        </label>
+      </div>
+      <div id="recurring-list-container" class="recurring-list-container">
+        <!-- Recurring items injected dynamically by script.js -->
+      </div>
+      <div class="modal-btn-row">
+        <button type="button" id="done-recurring-btn" class="btn btn-sm btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Confirmation Modal (Replaces native confirm()) -->
+  <div id="confirm-modal" class="calendar-modal-backdrop" style="display: none;">
+    <div class="calendar-modal-content budget-modal-content" role="dialog" aria-modal="true" aria-label="Confirm Action">
+      <div class="cal-header">
+        <h3 class="modal-title" id="confirm-modal-title">Confirm Action</h3>
+        <button type="button" id="close-confirm-modal-btn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <p class="modal-desc" id="confirm-modal-message">Are you sure you want to proceed?</p>
+      <div class="modal-btn-row">
+        <button type="button" id="cancel-confirm-btn" class="btn btn-sm btn-secondary">Cancel</button>
+        <button type="button" id="ok-confirm-btn" class="btn btn-sm btn-danger-solid">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Non-Blocking Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <script src="script.js"></script>
 </body>
