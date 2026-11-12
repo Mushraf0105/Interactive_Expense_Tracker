@@ -2029,6 +2029,225 @@ select.input-error {
   border-color: var(--color-danger-hover);
 }
 
+/* Quick-Add Favorite Templates Strip */
+.quick-templates-section {
+  padding: 9px 15px 10px 15px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.quick-templates-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.quick-templates-title {
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.favorite-templates-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.template-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+  max-width: 100%;
+}
+
+.template-chip:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.template-chip-main {
+  border: none;
+  background: transparent;
+  padding: 3px 6px 3px 8px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 195px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.template-chip:hover .template-chip-main {
+  color: var(--color-primary);
+}
+
+.template-chip-amount {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.template-chip-remove {
+  border: none;
+  border-left: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-light);
+  padding: 3px 6px;
+  font-size: 0.68rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.template-chip-remove:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.templates-empty {
+  font-size: 0.72rem;
+  color: var(--text-light);
+}
+
+/* Data Backup, Restore & Import Modal */
+.backup-modal-content {
+  max-width: 520px !important;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.backup-section-box {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.backup-section-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.backup-section-desc {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.backup-export-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.backup-export-btns .btn {
+  flex: 1;
+  min-width: 160px;
+}
+
+.hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.import-dropzone {
+  border: 2px dashed var(--border-color);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 18px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.import-dropzone:hover,
+.import-dropzone:focus,
+.import-dropzone.drag-over {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  outline: none;
+}
+
+.dropzone-icon {
+  font-size: 1.65rem;
+  margin-bottom: 4px;
+}
+
+.dropzone-text {
+  font-size: 0.82rem;
+  color: var(--text-main);
+  margin-bottom: 3px;
+}
+
+.dropzone-subtext {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.import-preview-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-sm);
+}
+
+.import-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  color: var(--text-main);
+}
+
+.import-preview-stats {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: 8px;
+}
+
+.import-options-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.import-action-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.import-action-row .btn {
+  flex: 1;
+}
+
 /* Floating Non-Blocking Toast Notifications */
 .toast-container {
   position: fixed;

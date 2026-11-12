@@ -7,6 +7,7 @@ const THEME_KEY = 'interactive_expenses_theme';
 const BUDGET_KEY = 'interactive_expenses_monthly_budget';
 const RECURRING_KEY = 'interactive_expenses_recurring_rules';
 const AUTO_LOG_RECUR_KEY = 'interactive_expenses_auto_log_recurring';
+const TEMPLATES_KEY = 'interactive_expenses_favorite_templates';
 const DEFAULT_BUDGET = 25000.00;
 
 // Default initial expenses provided if localStorage is empty
@@ -46,6 +47,8 @@ let expenses = loadExpenses();
 let monthlyBudget = loadMonthlyBudget();
 let recurringRules = loadRecurringRules();
 let autoLogRecurring = loadAutoLogPreference();
+let favoriteTemplates = loadFavoriteTemplates();
+let pendingImportData = null;
 let selectedExpenseIds = new Set();
 let activeChartRange = '7d';
 let isEditing = false;
@@ -56,12 +59,18 @@ let activeConfirmCallback = null;
 // 2. DOM Elements
 // ==========================================================================
 
-// Theme Toggle & Recurring Header Elements
+// Theme Toggle & Header Utility Elements
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
 const themeIcon = document.getElementById('theme-icon');
 const themeLabel = document.getElementById('theme-label');
 const openRecurringBtn = document.getElementById('open-recurring-btn');
 const recurringCountBadge = document.getElementById('recurring-count-badge');
+const openBackupBtn = document.getElementById('open-backup-btn');
+
+// Quick-Add Favorite Templates Elements
+const quickTemplatesSection = document.getElementById('quick-templates-section');
+const pinTemplateBtn = document.getElementById('pin-template-btn');
+const favoriteTemplatesList = document.getElementById('favorite-templates-list');
 
 // Form Elements
 const expenseForm = document.getElementById('expense-form');
@@ -205,6 +214,27 @@ const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const okConfirmBtn = document.getElementById('ok-confirm-btn');
 const toastContainer = document.getElementById('toast-container');
 
+// Data Backup, Restore & Import Modal Elements
+const backupModal = document.getElementById('backup-modal');
+const closeBackupModalBtn = document.getElementById('close-backup-modal-btn');
+const doneBackupBtn = document.getElementById('done-backup-btn');
+const exportJsonBtn = document.getElementById('export-json-btn');
+const exportCsvBtn = document.getElementById('export-csv-btn');
+const importFileInput = document.getElementById('import-file-input');
+const importDropzone = document.getElementById('import-dropzone');
+const importPreviewBox = document.getElementById('import-preview-box');
+const importFileName = document.getElementById('import-file-name');
+const importFormatBadge = document.getElementById('import-format-badge');
+const importPreviewStats = document.getElementById('import-preview-stats');
+const importSkipDupesWrap = document.getElementById('import-skip-dupes-wrap');
+const importSkipDupesCheckbox = document.getElementById('import-skip-dupes-checkbox');
+const importRestoreSettingsWrap = document.getElementById('import-restore-settings-wrap');
+const importRestoreSettingsCheckbox = document.getElementById('import-restore-settings-checkbox');
+const importMergeBtn = document.getElementById('import-merge-btn');
+const importReplaceBtn = document.getElementById('import-replace-btn');
+const importClearFileBtn = document.getElementById('import-clear-file-btn');
+const importErrorMsg = document.getElementById('import-error-msg');
+
 // ==========================================================================
 // 3. LocalStorage Persistence & Theme
 // ==========================================================================
@@ -335,6 +365,40 @@ function saveAutoLogPreference(enabled) {
     autoLogRecurring = Boolean(enabled);
     localStorage.setItem(AUTO_LOG_RECUR_KEY, String(autoLogRecurring));
   } catch (e) {}
+}
+
+/**
+ * Loads Quick-Add favorite templates from LocalStorage (seeds helpful defaults on first visit).
+ */
+function loadFavoriteTemplates() {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_KEY);
+    if (raw === null) {
+      const seed = [
+        { id: 'tpl-1', title: 'Morning Coffee', amount: 60.00, category: 'Food & Dining' },
+        { id: 'tpl-2', title: 'Metro / Auto Ride', amount: 50.00, category: 'Transportation' },
+        { id: 'tpl-3', title: 'Milk & Essentials', amount: 120.00, category: 'Food & Dining' }
+      ];
+      localStorage.setItem(TEMPLATES_KEY, JSON.stringify(seed));
+      return seed;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error loading favorite templates:', e);
+    return [];
+  }
+}
+
+/**
+ * Saves Quick-Add favorite templates to LocalStorage.
+ */
+function saveFavoriteTemplates() {
+  try {
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(favoriteTemplates));
+  } catch (e) {
+    console.error('Error saving favorite templates:', e);
+  }
 }
 
 /**
@@ -1399,6 +1463,640 @@ function closeRecurringModal() {
   recurringModal.style.display = 'none';
 }
 
+// ==========================================================================
+// Quick-Add Favorite Templates Engine
+// ==========================================================================
+
+/**
+ * Resolves a matching emoji badge icon for any category string.
+ */
+function getCategoryEmojiIcon(category) {
+  const cls = getCategoryClass(category);
+  switch (cls) {
+    case 'cat-food': return '🍔';
+    case 'cat-transport': return '🚗';
+    case 'cat-housing': return '💡';
+    case 'cat-entertainment': return '🎬';
+    case 'cat-health': return '💊';
+    case 'cat-shopping': return '🛍️';
+    default: return '🏷️';
+  }
+}
+
+/**
+ * Renders 1-click Quick-Add favorite template chips above the form.
+ */
+function renderFavoriteTemplates() {
+  if (!favoriteTemplatesList) return;
+
+  if (favoriteTemplates.length === 0) {
+    favoriteTemplatesList.innerHTML = '<span class="templates-empty">No templates pinned yet. Fill the form and click <strong>+ Pin Current</strong>.</span>';
+    return;
+  }
+
+  favoriteTemplatesList.innerHTML = favoriteTemplates.map(tpl => {
+    const icon = getCategoryEmojiIcon(tpl.category);
+    return `
+      <div class="template-chip" data-tpl-id="${tpl.id}">
+        <button type="button" class="template-chip-main" data-id="${tpl.id}" title="Click to instantly log ${escapeHtml(tpl.title)} (${formatCurrency(tpl.amount)})">
+          <span>${icon}</span>
+          <span>${escapeHtml(tpl.title)}</span>
+          <span class="template-chip-amount">₹${Number(tpl.amount).toFixed(0)}</span>
+        </button>
+        <button type="button" class="template-chip-remove" data-id="${tpl.id}" aria-label="Remove template ${escapeHtml(tpl.title)}" title="Unpin template">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Logs an expense immediately from a favorite template for today's date (with 5s Undo).
+ */
+function handleUseTemplate(templateId) {
+  const tpl = favoriteTemplates.find(t => t.id === templateId);
+  if (!tpl) return;
+
+  const newExp = {
+    id: 'exp-' + Date.now(),
+    title: tpl.title,
+    amount: Number(tpl.amount),
+    category: tpl.category,
+    date: getTodayYMD()
+  };
+
+  expenses.unshift(newExp);
+  saveExpenses();
+  render();
+
+  showToast({
+    message: `Quick-added "${tpl.title}" (${formatCurrency(tpl.amount)}).`,
+    type: 'success',
+    duration: 5000,
+    onUndo: () => {
+      expenses = expenses.filter(e => e.id !== newExp.id);
+      saveExpenses();
+      render();
+      showToast({ message: `Undid quick-add "${tpl.title}".`, type: 'info', duration: 2500 });
+    }
+  });
+}
+
+/**
+ * Pins the current Title, Amount, and Category form inputs as a Quick-Add template.
+ */
+function handlePinCurrentAsTemplate() {
+  clearErrors();
+  const title = expenseTitleInput ? expenseTitleInput.value.trim() : '';
+  const amount = expenseAmountInput ? parseFloat(expenseAmountInput.value) : NaN;
+  const category = expenseCategoryInput ? expenseCategoryInput.value.trim() : '';
+
+  let ok = true;
+  if (!title || title.length < 2) {
+    if (titleError) titleError.textContent = 'Enter a title (min 2 chars) to pin template.';
+    if (expenseTitleInput) expenseTitleInput.classList.add('input-error');
+    ok = false;
+  }
+  if (isNaN(amount) || amount <= 0) {
+    if (amountError) amountError.textContent = 'Enter amount > ₹0.00 to pin template.';
+    if (expenseAmountInput) expenseAmountInput.classList.add('input-error');
+    ok = false;
+  }
+  if (!category) {
+    if (categoryError) categoryError.textContent = 'Enter category to pin template.';
+    if (expenseCategoryInput) expenseCategoryInput.classList.add('input-error');
+    ok = false;
+  }
+  if (!ok) {
+    showToast({ message: 'Fill Title, Amount, and Category first to pin a template.', type: 'warning', duration: 3200 });
+    return;
+  }
+
+  const duplicate = favoriteTemplates.some(
+    t => t.title.toLowerCase() === title.toLowerCase() &&
+         Number(t.amount).toFixed(2) === amount.toFixed(2) &&
+         t.category.toLowerCase() === category.toLowerCase()
+  );
+
+  if (duplicate) {
+    showToast({ message: `Template "${title}" is already pinned.`, type: 'info', duration: 2800 });
+    return;
+  }
+
+  favoriteTemplates.push({
+    id: 'tpl-' + Date.now(),
+    title,
+    amount,
+    category
+  });
+  saveFavoriteTemplates();
+  renderFavoriteTemplates();
+  showToast({ message: `Pinned "${title}" (${formatCurrency(amount)}) to Quick Templates.`, type: 'success', duration: 3200 });
+}
+
+/**
+ * Removes a Quick-Add template chip with 5s Undo support.
+ */
+function handleRemoveTemplate(templateId) {
+  const idx = favoriteTemplates.findIndex(t => t.id === templateId);
+  if (idx === -1) return;
+
+  const removed = { ...favoriteTemplates[idx] };
+  favoriteTemplates.splice(idx, 1);
+  saveFavoriteTemplates();
+  renderFavoriteTemplates();
+
+  showToast({
+    message: `Unpinned template "${removed.title}".`,
+    type: 'danger',
+    duration: 5000,
+    onUndo: () => {
+      favoriteTemplates.splice(Math.min(idx, favoriteTemplates.length), 0, removed);
+      saveFavoriteTemplates();
+      renderFavoriteTemplates();
+      showToast({ message: `Restored template "${removed.title}".`, type: 'success', duration: 2500 });
+    }
+  });
+}
+
+// ==========================================================================
+// Data Backup, Restore & Import (.json / .csv) Engine
+// ==========================================================================
+
+/**
+ * Triggers browser download for generated text/JSON/CSV files.
+ */
+function downloadTextFile(content, fileName, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Exports full application backup (expenses, budget, recurring rules, templates & theme) as JSON.
+ */
+function handleExportJSON() {
+  const payload = {
+    app: 'Veda Technology Interactive Expense Tracker',
+    version: '1.4.0',
+    exportedAt: new Date().toISOString(),
+    monthlyBudget,
+    theme: document.documentElement.getAttribute('data-theme') || 'light',
+    autoLogRecurring,
+    expenses,
+    recurringRules,
+    favoriteTemplates
+  };
+
+  const today = getTodayYMD();
+  downloadTextFile(JSON.stringify(payload, null, 2), `Expense_Backup_${today}.json`, 'application/json');
+  showToast({
+    message: `Exported full JSON backup (${expenses.length} expenses, ${recurringRules.length} recurring rules).`,
+    type: 'success',
+    duration: 3600
+  });
+}
+
+function csvEscape(val) {
+  const str = String(val == null ? '' : val);
+  if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+/**
+ * Exports all recorded expenses as an RFC-4180 CSV spreadsheet.
+ */
+function handleExportCSV() {
+  if (expenses.length === 0) {
+    showToast({ message: 'No expenses recorded to export to CSV.', type: 'warning', duration: 3000 });
+    return;
+  }
+
+  const header = ['Date', 'Title', 'Category', 'Amount', 'Recurring'];
+  const rows = expenses.map(e => [
+    csvEscape(e.date),
+    csvEscape(e.title),
+    csvEscape(e.category),
+    Number(e.amount || 0).toFixed(2),
+    csvEscape(e.recurring || 'none')
+  ].join(','));
+
+  const csvContent = '\uFEFF' + [header.join(','), ...rows].join('\r\n');
+  const today = getTodayYMD();
+  downloadTextFile(csvContent, `Expense_Data_${today}.csv`, 'text/csv;charset=utf-8');
+  showToast({
+    message: `Exported ${expenses.length} expense${expenses.length === 1 ? '' : 's'} to CSV.`,
+    type: 'success',
+    duration: 3400
+  });
+}
+
+/**
+ * Normalizes YYYY-MM-DD, YYYY/MM/DD, DD-MM-YYYY, DD/MM/YYYY, or ISO timestamps to YYYY-MM-DD.
+ */
+function normalizeImportedDate(raw) {
+  const str = String(raw || '').trim();
+  if (!str) return null;
+
+  // Match YYYY-MM-DD or YYYY/MM/DD (optionally followed by T...)
+  let m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  let y, mo, d;
+  if (m) {
+    y = parseInt(m[1], 10);
+    mo = parseInt(m[2], 10);
+    d = parseInt(m[3], 10);
+  } else {
+    // Match DD-MM-YYYY or DD/MM/YYYY
+    m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (m) {
+      d = parseInt(m[1], 10);
+      mo = parseInt(m[2], 10);
+      y = parseInt(m[3], 10);
+    }
+  }
+
+  if (m) {
+    if (y >= 1900 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+        return formatDateYMD(dt);
+      }
+    }
+    return null; // Reject impossible numeric dates (e.g. Feb 30) rather than rolling over
+  }
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 1900 && parsed.getFullYear() <= 2100) {
+    return formatDateYMD(parsed);
+  }
+  return null;
+}
+
+/**
+ * Validates and normalizes an imported expense object from either JSON or CSV.
+ */
+function sanitizeExpenseRecord(rawObj) {
+  if (!rawObj || typeof rawObj !== 'object') return null;
+
+  const title = String(rawObj.title || rawObj.description || rawObj.name || '').trim().slice(0, 60);
+  const amtRaw = String(rawObj.amount ?? '').replace(/[₹$,\s]/g, '');
+  const amount = parseFloat(amtRaw);
+  const category = String(rawObj.category || rawObj.type || 'Other').trim().slice(0, 40) || 'Other';
+  const date = normalizeImportedDate(rawObj.date);
+
+  if (!title || isNaN(amount) || !isFinite(amount) || amount <= 0 || !date) {
+    return null;
+  }
+
+  const rec = {
+    title,
+    amount: Math.round(amount * 100) / 100,
+    category,
+    date
+  };
+
+  if (rawObj.recurring === 'weekly' || rawObj.recurring === 'monthly') {
+    rec.recurring = rawObj.recurring;
+  }
+  return rec;
+}
+
+function buildExpenseFingerprint(item) {
+  return `${item.date}|${String(item.title || '').trim().toLowerCase()}|${Number(item.amount).toFixed(2)}`;
+}
+
+/**
+ * Parses a single RFC-4180 CSV line respecting double-quoted commas and escaped quotes.
+ */
+function parseImportedCSVLine(line) {
+  const fields = [];
+  let cur = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      fields.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  fields.push(cur.trim());
+  return fields;
+}
+
+/**
+ * Parses uploaded CSV text into sanitized expense records + skipped row count.
+ */
+function parseImportedCSV(text) {
+  const cleaned = String(text || '').replace(/^\uFEFF/, '');
+  const lines = cleaned.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) {
+    throw new Error('CSV file must include a header row and at least one data row.');
+  }
+
+  const headers = parseImportedCSVLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const findCol = (aliases) => headers.findIndex(h => aliases.some(a => h === a || h.includes(a)));
+
+  const dateIdx = findCol(['date', 'day', 'time']);
+  const titleIdx = findCol(['title', 'description', 'desc', 'name', 'item', 'memo']);
+  const catIdx = findCol(['category', 'cat', 'type', 'group']);
+  const amtIdx = findCol(['amount', 'amt', 'price', 'cost', 'inr', 'value']);
+  const recurIdx = findCol(['recurring', 'repeat', 'freq']);
+
+  if (titleIdx === -1 || amtIdx === -1 || dateIdx === -1) {
+    throw new Error('Missing required CSV columns. Expected headers: Date, Title, Category, Amount.');
+  }
+
+  const records = [];
+  let skippedCount = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseImportedCSVLine(lines[i]);
+    const sanitized = sanitizeExpenseRecord({
+      date: cols[dateIdx],
+      title: cols[titleIdx],
+      category: catIdx !== -1 ? cols[catIdx] : 'Other',
+      amount: cols[amtIdx],
+      recurring: recurIdx !== -1 ? cols[recurIdx] : undefined
+    });
+    if (sanitized) records.push(sanitized);
+    else skippedCount++;
+  }
+
+  if (records.length === 0) {
+    throw new Error('No valid expense rows found inside this CSV file.');
+  }
+
+  return { records, skippedCount, backupMeta: null };
+}
+
+/**
+ * Parses uploaded JSON backup or plain expense array into validated records & metadata.
+ */
+function parseImportedJSON(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(String(text || '').replace(/^\uFEFF/, ''));
+  } catch (e) {
+    throw new Error('Invalid JSON syntax. Please choose a valid JSON backup file.');
+  }
+
+  const rawList = Array.isArray(parsed)
+    ? parsed
+    : (parsed && Array.isArray(parsed.expenses) ? parsed.expenses : null);
+
+  if (!rawList) {
+    throw new Error('JSON file does not contain an expenses array.');
+  }
+
+  const records = [];
+  let skippedCount = 0;
+  rawList.forEach(item => {
+    const sanitized = sanitizeExpenseRecord(item);
+    if (sanitized) records.push(sanitized);
+    else skippedCount++;
+  });
+
+  let backupMeta = null;
+  if (!Array.isArray(parsed)) {
+    backupMeta = {
+      monthlyBudget: (typeof parsed.monthlyBudget === 'number' && parsed.monthlyBudget >= 100) ? parsed.monthlyBudget : null,
+      theme: (parsed.theme === 'dark' || parsed.theme === 'light') ? parsed.theme : null,
+      autoLogRecurring: typeof parsed.autoLogRecurring === 'boolean' ? parsed.autoLogRecurring : null,
+      recurringRules: Array.isArray(parsed.recurringRules)
+        ? parsed.recurringRules.filter(r => r && r.title && r.amount > 0 && (r.frequency === 'weekly' || r.frequency === 'monthly') && normalizeImportedDate(r.nextDueDate))
+        : null,
+      favoriteTemplates: Array.isArray(parsed.favoriteTemplates)
+        ? parsed.favoriteTemplates.filter(t => t && t.title && t.amount > 0 && t.category)
+        : null
+    };
+  }
+
+  if (records.length === 0 && !backupMeta) {
+    throw new Error('No valid expenses or backup settings found in this JSON file.');
+  }
+
+  return { records, skippedCount, backupMeta };
+}
+
+function clearImportPreview() {
+  pendingImportData = null;
+  if (importFileInput) importFileInput.value = '';
+  if (importPreviewBox) importPreviewBox.style.display = 'none';
+  if (importErrorMsg) importErrorMsg.textContent = '';
+}
+
+/**
+ * Reads selected/dropped .json or .csv file, validates entries, detects duplicates & shows preview.
+ */
+function handleImportFile(file) {
+  if (!file) return;
+  if (importErrorMsg) importErrorMsg.textContent = '';
+
+  const nameLower = (file.name || '').toLowerCase();
+  const isJson = nameLower.endsWith('.json') || file.type === 'application/json';
+  const isCsv = nameLower.endsWith('.csv') || file.type === 'text/csv';
+
+  if (!isJson && !isCsv) {
+    clearImportPreview();
+    if (importErrorMsg) importErrorMsg.textContent = 'Unsupported file type. Please choose a .json or .csv file.';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const content = ev.target.result;
+      const parsed = isJson ? parseImportedJSON(content) : parseImportedCSV(content);
+
+      const existingFingerprints = new Set(expenses.map(buildExpenseFingerprint));
+      const duplicateCount = parsed.records.filter(r => existingFingerprints.has(buildExpenseFingerprint(r))).length;
+
+      pendingImportData = {
+        format: isJson ? 'JSON' : 'CSV',
+        fileName: file.name,
+        records: parsed.records,
+        skippedCount: parsed.skippedCount,
+        duplicateCount,
+        backupMeta: parsed.backupMeta
+      };
+
+      if (importFileName) importFileName.textContent = file.name;
+      if (importFormatBadge) importFormatBadge.textContent = pendingImportData.format;
+      if (importPreviewStats) {
+        const lines = [
+          `✅ <strong>${parsed.records.length}</strong> valid expense${parsed.records.length === 1 ? '' : 's'} ready to import`,
+          duplicateCount > 0 ? `• 🔁 <strong>${duplicateCount}</strong> matching duplicate${duplicateCount === 1 ? '' : 's'} detected` : '• No duplicate expenses detected'
+        ];
+        if (parsed.skippedCount > 0) {
+          lines.push(`• ⚠️ <strong>${parsed.skippedCount}</strong> incomplete/invalid row${parsed.skippedCount === 1 ? '' : 's'} skipped`);
+        }
+        if (parsed.backupMeta) {
+          const extras = [];
+          if (parsed.backupMeta.monthlyBudget !== null) extras.push(`Budget (${formatCurrency(parsed.backupMeta.monthlyBudget)})`);
+          if (parsed.backupMeta.recurringRules && parsed.backupMeta.recurringRules.length > 0) extras.push(`${parsed.backupMeta.recurringRules.length} recurring rules`);
+          if (parsed.backupMeta.favoriteTemplates && parsed.backupMeta.favoriteTemplates.length > 0) extras.push(`${parsed.backupMeta.favoriteTemplates.length} templates`);
+          if (extras.length > 0) lines.push(`• ⚙️ Includes settings: ${extras.join(', ')}`);
+        }
+        importPreviewStats.innerHTML = lines.join('<br>');
+      }
+
+      if (importRestoreSettingsWrap) {
+        const hasSettings = Boolean(
+          parsed.backupMeta &&
+          (parsed.backupMeta.monthlyBudget !== null ||
+           (parsed.backupMeta.recurringRules && parsed.backupMeta.recurringRules.length > 0) ||
+           (parsed.backupMeta.favoriteTemplates && parsed.backupMeta.favoriteTemplates.length > 0))
+        );
+        importRestoreSettingsWrap.style.display = hasSettings ? 'inline-flex' : 'none';
+      }
+
+      if (importPreviewBox) importPreviewBox.style.display = 'block';
+    } catch (err) {
+      clearImportPreview();
+      if (importErrorMsg) importErrorMsg.textContent = err.message || 'Unable to parse file.';
+    }
+  };
+  reader.onerror = () => {
+    clearImportPreview();
+    if (importErrorMsg) importErrorMsg.textContent = 'Failed to read file from disk.';
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * Applies pending import data via Merge or Replace mode, with full state Undo support.
+ */
+function executeImport(mode) {
+  if (!pendingImportData) return;
+
+  const { records, backupMeta, fileName } = pendingImportData;
+  const skipDupes = importSkipDupesCheckbox ? importSkipDupesCheckbox.checked : true;
+  const restoreSettings = importRestoreSettingsCheckbox ? importRestoreSettingsCheckbox.checked : false;
+
+  // Snapshot full previous state for 5s Undo recovery
+  const snapshot = {
+    expenses: expenses.map(e => ({ ...e })),
+    monthlyBudget,
+    recurringRules: recurringRules.map(r => ({ ...r })),
+    favoriteTemplates: favoriteTemplates.map(t => ({ ...t })),
+    autoLogRecurring,
+    theme: document.documentElement.getAttribute('data-theme') || 'light'
+  };
+
+  const baseTs = Date.now();
+  const makeUniqueExpenses = (arr) => arr.map((r, idx) => ({
+    ...r,
+    id: `exp-imp-${baseTs}-${idx}-${Math.floor(Math.random() * 1000)}`
+  }));
+
+  let addedCount = 0;
+
+  if (mode === 'replace') {
+    expenses = makeUniqueExpenses(records);
+    addedCount = expenses.length;
+    selectedExpenseIds.clear();
+
+    if (backupMeta && restoreSettings) {
+      if (backupMeta.monthlyBudget !== null) saveMonthlyBudget(backupMeta.monthlyBudget);
+      if (backupMeta.recurringRules) recurringRules = backupMeta.recurringRules.map(r => ({ ...r }));
+      if (backupMeta.favoriteTemplates) favoriteTemplates = backupMeta.favoriteTemplates.map(t => ({ ...t }));
+      if (backupMeta.autoLogRecurring !== null) saveAutoLogPreference(backupMeta.autoLogRecurring);
+      if (backupMeta.theme) applyTheme(backupMeta.theme, true);
+    }
+  } else {
+    const existingSet = new Set(expenses.map(buildExpenseFingerprint));
+    const filteredToAdd = skipDupes
+      ? records.filter(r => !existingSet.has(buildExpenseFingerprint(r)))
+      : records;
+
+    const prepared = makeUniqueExpenses(filteredToAdd);
+    expenses = [...prepared, ...expenses];
+    addedCount = prepared.length;
+
+    if (backupMeta && restoreSettings) {
+      if (backupMeta.monthlyBudget !== null) saveMonthlyBudget(backupMeta.monthlyBudget);
+      if (backupMeta.recurringRules) {
+        const existingRuleKeys = new Set(recurringRules.map(r => `${r.title.toLowerCase()}|${r.frequency}`));
+        backupMeta.recurringRules.forEach(r => {
+          if (!existingRuleKeys.has(`${r.title.toLowerCase()}|${r.frequency}`)) {
+            recurringRules.push({ ...r, id: r.id || `rec-imp-${Date.now()}-${Math.floor(Math.random() * 1000)}` });
+          }
+        });
+      }
+      if (backupMeta.favoriteTemplates) {
+        const existingTplKeys = new Set(favoriteTemplates.map(t => `${t.title.toLowerCase()}|${Number(t.amount).toFixed(2)}`));
+        backupMeta.favoriteTemplates.forEach(t => {
+          if (!existingTplKeys.has(`${t.title.toLowerCase()}|${Number(t.amount).toFixed(2)}`)) {
+            favoriteTemplates.push({ ...t, id: t.id || `tpl-imp-${Date.now()}-${Math.floor(Math.random() * 1000)}` });
+          }
+        });
+      }
+    }
+  }
+
+  saveExpenses();
+  saveRecurringRules();
+  saveFavoriteTemplates();
+  closeBackupModal();
+  render();
+
+  showToast({
+    message: mode === 'replace'
+      ? `Restored ${addedCount} expenses from "${fileName}".`
+      : `Imported ${addedCount} new expense${addedCount === 1 ? '' : 's'} from "${fileName}".`,
+    type: 'success',
+    duration: 5500,
+    onUndo: () => {
+      expenses = snapshot.expenses;
+      saveMonthlyBudget(snapshot.monthlyBudget);
+      recurringRules = snapshot.recurringRules;
+      favoriteTemplates = snapshot.favoriteTemplates;
+      saveAutoLogPreference(snapshot.autoLogRecurring);
+      applyTheme(snapshot.theme, true);
+      saveExpenses();
+      saveRecurringRules();
+      saveFavoriteTemplates();
+      render();
+      showToast({ message: 'Reverted import & restored previous state.', type: 'info', duration: 2800 });
+    }
+  });
+}
+
+function openBackupModal() {
+  if (!backupModal) return;
+  clearImportPreview();
+  backupModal.style.display = 'flex';
+}
+
+function closeBackupModal() {
+  if (!backupModal) return;
+  backupModal.style.display = 'none';
+  clearImportPreview();
+}
+
 /**
  * Synchronizes the category filter dropdown options with all existing categories.
  */
@@ -1617,6 +2315,7 @@ function render() {
   updateCategoryFilterOptions();
   updateSortByDisplay();
   renderCategoryDropdown(expenseCategoryInput ? expenseCategoryInput.value : '');
+  renderFavoriteTemplates();
   evaluateRecurringReminders();
 
   const visibleExpenses = getFilteredAndSortedExpenses();
@@ -1736,9 +2435,12 @@ function updateBulkSelectionUI(visibleExpenses = []) {
  * Escapes HTML characters to prevent XSS.
  */
 function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ==========================================================================
@@ -2427,6 +3129,8 @@ function setupEventListeners() {
     if (e.key === 'Escape') {
       if (confirmModal && confirmModal.style.display !== 'none') {
         closeConfirmModal();
+      } else if (backupModal && backupModal.style.display !== 'none') {
+        closeBackupModal();
       } else if (recurringModal && recurringModal.style.display !== 'none') {
         closeRecurringModal();
       } else if (budgetModal && budgetModal.style.display !== 'none') {
@@ -2859,6 +3563,81 @@ function setupEventListeners() {
     confirmModal.addEventListener('click', (e) => {
       if (e.target === confirmModal) closeConfirmModal();
     });
+  }
+
+  // Quick-Add Favorite Templates Listeners
+  if (pinTemplateBtn) {
+    pinTemplateBtn.addEventListener('click', handlePinCurrentAsTemplate);
+  }
+  if (favoriteTemplatesList) {
+    favoriteTemplatesList.addEventListener('click', (e) => {
+      const useBtn = e.target.closest('.template-chip-main');
+      const removeBtn = e.target.closest('.template-chip-remove');
+      if (removeBtn) {
+        handleRemoveTemplate(removeBtn.dataset.id);
+      } else if (useBtn) {
+        handleUseTemplate(useBtn.dataset.id);
+      }
+    });
+  }
+
+  // Data Backup, Restore & Import Modal Listeners
+  if (openBackupBtn) {
+    openBackupBtn.addEventListener('click', openBackupModal);
+  }
+  if (closeBackupModalBtn) {
+    closeBackupModalBtn.addEventListener('click', closeBackupModal);
+  }
+  if (doneBackupBtn) {
+    doneBackupBtn.addEventListener('click', closeBackupModal);
+  }
+  if (backupModal) {
+    backupModal.addEventListener('click', (e) => {
+      if (e.target === backupModal) closeBackupModal();
+    });
+  }
+  if (exportJsonBtn) {
+    exportJsonBtn.addEventListener('click', handleExportJSON);
+  }
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', handleExportCSV);
+  }
+  if (importDropzone && importFileInput) {
+    importDropzone.addEventListener('click', () => importFileInput.click());
+    importDropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        importFileInput.click();
+      }
+    });
+    importDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      importDropzone.classList.add('drag-over');
+    });
+    importDropzone.addEventListener('dragleave', () => {
+      importDropzone.classList.remove('drag-over');
+    });
+    importDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      importDropzone.classList.remove('drag-over');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleImportFile(e.dataTransfer.files[0]);
+      }
+    });
+    importFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleImportFile(e.target.files[0]);
+      }
+    });
+  }
+  if (importMergeBtn) {
+    importMergeBtn.addEventListener('click', () => executeImport('merge'));
+  }
+  if (importReplaceBtn) {
+    importReplaceBtn.addEventListener('click', () => executeImport('replace'));
+  }
+  if (importClearFileBtn) {
+    importClearFileBtn.addEventListener('click', clearImportPreview);
   }
 
   // Filter & Search Controls

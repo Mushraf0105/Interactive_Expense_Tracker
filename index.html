@@ -21,6 +21,10 @@
         </div>
       </div>
       <div class="header-actions">
+        <button id="open-backup-btn" class="header-pill-btn" type="button" aria-label="Backup, restore, or import expenses" title="Backup, restore, or import (.json / .csv)">
+          <span>💾</span>
+          <span>Backup & Import</span>
+        </button>
         <button id="open-recurring-btn" class="header-pill-btn" type="button" aria-label="Manage recurring expenses and bill reminders" title="Manage recurring bills">
           <span>🔁</span>
           <span>Recurring Bills</span>
@@ -165,6 +169,19 @@
           <div class="card-header">
             <h3 id="form-heading">Add New Expense</h3>
             <span id="edit-badge" class="badge edit-mode-badge" style="display: none;">Editing</span>
+          </div>
+
+          <!-- Quick-Add Favorite Templates Strip -->
+          <div class="quick-templates-section" id="quick-templates-section">
+            <div class="quick-templates-header">
+              <span class="quick-templates-title">⚡ Quick-Add Templates</span>
+              <button type="button" id="pin-template-btn" class="btn-icon-link" title="Save current form fields as a 1-click template">
+                + Pin Current
+              </button>
+            </div>
+            <div class="favorite-templates-list" id="favorite-templates-list">
+              <!-- Favorite template chips injected dynamically by script.js -->
+            </div>
           </div>
 
           <form id="expense-form" novalidate>
@@ -522,6 +539,66 @@
       <div class="modal-btn-row">
         <button type="button" id="cancel-confirm-btn" class="btn btn-sm btn-secondary">Cancel</button>
         <button type="button" id="ok-confirm-btn" class="btn btn-sm btn-danger-solid">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Backup, Restore & Import Modal (.json / .csv) -->
+  <div id="backup-modal" class="calendar-modal-backdrop" style="display: none;">
+    <div class="calendar-modal-content recurring-modal-content backup-modal-content" role="dialog" aria-modal="true" aria-label="Data Backup, Restore & Import">
+      <div class="cal-header">
+        <h3 class="modal-title">💾 Data Backup, Restore & Import</h3>
+        <button type="button" id="close-backup-modal-btn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+
+      <!-- Export Snapshot Section -->
+      <div class="backup-section-box">
+        <div class="backup-section-title">Export Your Local Data</div>
+        <p class="backup-section-desc">Download a full JSON snapshot (expenses, budget, recurring bills & templates) or a spreadsheet-compatible CSV file.</p>
+        <div class="backup-export-btns">
+          <button type="button" id="export-json-btn" class="btn btn-sm btn-primary">⬇️ Export Backup (.json)</button>
+          <button type="button" id="export-csv-btn" class="btn btn-sm btn-outline">📊 Export CSV (.csv)</button>
+        </div>
+      </div>
+
+      <!-- Import / Restore Section -->
+      <div class="backup-section-box">
+        <div class="backup-section-title">Restore or Import (.json / .csv)</div>
+        <input type="file" id="import-file-input" accept=".json,.csv,application/json,text/csv" class="hidden-file-input">
+        <div id="import-dropzone" class="import-dropzone" tabindex="0" role="button" aria-label="Click or drag and drop a JSON or CSV file to import">
+          <div class="dropzone-icon">📂</div>
+          <div class="dropzone-text"><strong>Click to select</strong> or drag & drop a <code>.json</code> or <code>.csv</code> file</div>
+          <div class="dropzone-subtext">Supports Veda Expense Tracker backups & CSV sheets (Date, Title, Category, Amount)</div>
+        </div>
+
+        <!-- Import Preview Summary (shown after selecting valid file) -->
+        <div id="import-preview-box" class="import-preview-box" style="display: none;">
+          <div class="import-preview-header">
+            <strong id="import-file-name">backup.json</strong>
+            <span class="pill-count-badge" id="import-format-badge">JSON</span>
+          </div>
+          <div class="import-preview-stats" id="import-preview-stats"></div>
+          <div class="import-options-col">
+            <label class="auto-log-label" id="import-skip-dupes-wrap">
+              <input type="checkbox" id="import-skip-dupes-checkbox" class="custom-checkbox" checked>
+              <span>Skip duplicate expenses when merging</span>
+            </label>
+            <label class="auto-log-label" id="import-restore-settings-wrap" style="display: none;">
+              <input type="checkbox" id="import-restore-settings-checkbox" class="custom-checkbox" checked>
+              <span>Also restore budget, recurring schedules & templates</span>
+            </label>
+          </div>
+          <div class="import-action-row">
+            <button type="button" id="import-merge-btn" class="btn btn-sm btn-primary">🔀 Merge Data</button>
+            <button type="button" id="import-replace-btn" class="btn btn-sm btn-danger-outline">♻️ Replace All</button>
+            <button type="button" id="import-clear-file-btn" class="btn btn-sm btn-secondary">Clear</button>
+          </div>
+        </div>
+        <small class="error-msg" id="import-error-msg"></small>
+      </div>
+
+      <div class="modal-btn-row">
+        <button type="button" id="done-backup-btn" class="btn btn-sm btn-secondary">Close</button>
       </div>
     </div>
   </div>

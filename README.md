@@ -8,9 +8,9 @@
 
 - **Organization:** Veda Technology
 - **Project Name:** Interactive Expense Tracker Web Application
-- **Version:** `v1.3.0`
+- **Version:** `v1.4.0`
 - **Initial Release Date:** November 09, 2026 (`v1.0.0`)
-- **Latest Feature Update:** November 11, 2026 (`v1.3.0`)
+- **Latest Feature Update:** November 12, 2026 (`v1.4.0`)
 - **Assessment Scope:** Multi-Section Responsive Portal & Mobile UI Engineering
 - **Regional Hub:** Lakhisarai, Bihar, India
 - **Verification Status:** `100% Completed & Verified`
@@ -20,15 +20,36 @@
 
 ## 📋 Executive Summary
 
-This official engineering documentation outlines the design, architecture, progressive feature deliverables, and verification audits for the **Veda Technology Interactive Expense Tracker** web portal. Initially released on **November 09, 2026 (`v1.0.0`)**, enhanced with dark mode, live budgeting, compact UI, and client-side PDF export on **November 10, 2026 (`v1.2.0`)**, and expanded with pure SVG data visualizations, recurring bill reminders, and non-blocking undo/bulk productivity tools on **November 11, 2026 (`v1.3.0`)**, the project strictly complies with **100% pure HTML5, CSS3, and modern Vanilla JavaScript (ES6+)** with zero external libraries or build tooling.
+This official engineering documentation outlines the design, architecture, progressive feature deliverables, and verification audits for the **Veda Technology Interactive Expense Tracker** web portal. Initially released on **November 09, 2026 (`v1.0.0`)**, enhanced with dark mode, live budgeting, compact UI, and client-side PDF export on **November 10, 2026 (`v1.2.0`)**, expanded with pure SVG analytics, recurring bill reminders, and non-blocking undo/bulk tools on **November 11, 2026 (`v1.3.0`)**, and strengthened with **full JSON/CSV data backup, restore & import** alongside **1-click Quick-Add favorite templates** on **November 12, 2026 (`v1.4.0`)**, the project strictly complies with **100% pure HTML5, CSS3, and modern Vanilla JavaScript (ES6+)** with zero external libraries or build tooling.
 
 The platform provides an end-to-end personal finance management suite featuring:
 - **Core Financial Tracking:** Real-time expense creation, editing, deletion, and persistent offline `localStorage` caching formatted in Indian Rupees (INR ₹).
+- **Quick-Add Favorite Templates:** 1-click pinned expense chips above the entry form (e.g., *Morning Coffee ₹60*) for instant daily logging and customizable template pinning.
+- **Data Backup, Restore & Import (`.json` / `.csv`):** Drag-and-drop restore modal with live row preview, duplicate detection, Merge/Replace options, RFC-4180 CSV spreadsheet export, and 5-second Undo protection.
 - **Dynamic Risk & Budget Control:** Live monthly budget goal tracking, real-time progress calculation, and a 3-tier visual alert indicator (🟢 Safe `< 75%`, 🟡 Caution `75%–99.9%`, 🚨 Critical Over-Budget `≥ 100%`).
 - **Interactive SVG Analytics & Charts:** Zero-library pure SVG category donut chart with hover readouts & click-to-filter support alongside a `7 Days` / `6 Months` spending trend bar chart.
 - **Recurring Bills & Reminders:** Weekly/Monthly expense scheduling, upcoming 7-day bill reminder alerts, optional startup auto-logging, and a dedicated manager modal.
 - **Non-Blocking Undo & Bulk Actions:** Floating 5-second Undo toast alerts for safe instant deletions, multi-select row checkboxes, **Export Selected PDF**, and **Delete Selected**.
 - **Zero-Dependency PDF Export & Theme Parity:** Client-side binary PDF 1.4 report generation (`Expense_Report_YYYY-MM-DD.pdf`), Dark/Light theme switching, fluid mobile card transformation, and verified WCAG 2.1 AA accessibility.
+
+---
+
+## 🧭 Project Approach (In Simple Words)
+
+- **Keep It 100% Pure & Lightweight:** Instead of heavy frameworks or external packages, everything is written in plain HTML, CSS, and JavaScript so the app opens instantly and never breaks due to outside updates.
+- **Work Offline Without Any Server:** Every expense, monthly budget limit, recurring bill, template, and theme choice is stored safely inside the browser's `localStorage`—no database or login setup is needed.
+- **Make Daily Tracking Fast & Stress-Free:** Users can log common expenses in one click using **Quick-Add Templates**, catch upcoming bills with **Recurring Reminders**, and safely fix mistakes using **5-second Undo alerts** instead of annoying browser popups.
+- **Protect & Export User Data Easily:** Users can back up everything into a `.json` file, import/export `.csv` spreadsheets, or generate formatted `.pdf` reports directly in the browser.
+- **Design for Every Screen:** On laptops everything stays compact and organized in one view; on mobile phones tables turn smoothly into easy-to-tap cards with both Light and Dark modes.
+
+---
+
+## 🎯 Project Outcome
+
+- **Instant Ready-to-Use Expense Tracker:** Opens in any browser with zero installation and tracks all spending cleanly in Indian Rupees (`₹`).
+- **Clear Spending Visibility:** Live budget warning bars, pure SVG donut charts, and 7-day / 6-month trend bars show exactly where money is going at a glance.
+- **Zero Accidental Data Loss:** Combined 5-second Undo recovery, duplicate-safe CSV/JSON import, and full JSON backups keep user records completely safe.
+- **Zero Hosting Cost:** Runs 100% on static files, making it free and effortless to host anywhere (GitHub Pages, Netlify, Vercel) or use straight from a local folder.
 
 ---
 
@@ -53,6 +74,8 @@ The platform provides an end-to-end personal finance management suite featuring:
 | **Visual Analytics & Pure SVG Charts** | **November 11, 2026** | Analytics & Visualizations | ✅ Production | Interactive SVG Donut chart + 7-Day / 6-Month spending trend bar chart with tooltips |
 | **Recurring Expenses & Bill Reminders** | **November 11, 2026** | Automation & Scheduling | ✅ Production | Weekly/Monthly repeat toggle, due bill alert banner, auto-log & manager modal |
 | **Toast Alerts, Undo Delete & Bulk Actions**| **November 11, 2026** | Productivity & UX | ✅ Production | Non-blocking 5s Undo toasts, multi-select checkboxes, Bulk Delete & Export Selected PDF |
+| **Data Backup, Restore & Import** | **November 12, 2026** | Data Portability & Safety | ✅ Production | JSON full backup, CSV export, drag-and-drop restore with preview & duplicate check |
+| **Quick-Add Favorite Templates** | **November 12, 2026** | Speed & Daily Ergonomics | ✅ Production | 1-click pinned expense chips with custom pinning (+ Pin Current) and Undo support |
 
 ---
 
@@ -147,6 +170,15 @@ The platform provides an end-to-end personal finance management suite featuring:
 - **Instant 5-Second Undo Delete:** Deleting any single transaction, clearing all records, or running bulk delete shows an interactive **↩️ Undo** button restoring items back to their exact positions.
 - **Multi-Select Checkboxes & Bulk Bar:** Select individual rows or toggle all visible entries via `#select-all-checkbox` (supporting indeterminate state) to **Export Selected PDF** or **Delete Selected** at once.
 
+### 15. 💾 Data Backup, Restore & Import (`.json` / `.csv`) *(Added: November 12, 2026)*
+- **Full JSON Snapshot Backup:** Export all expenses, monthly budget target, recurring schedules, favorite templates, and theme preferences into `Expense_Backup_YYYY-MM-DD.json`.
+- **Spreadsheet CSV Export & Import:** Download clean RFC-4180 spreadsheets (`Expense_Data_YYYY-MM-DD.csv`) or import `.csv` / `.json` files via drag-and-drop using a zero-dependency client-side `FileReader` and state-machine CSV parser.
+- **Live Preview, Duplicate Detection & Undo Safety:** Inspect valid row counts, skipped lines, and detected duplicates before choosing **Merge Data** (optionally skipping duplicates or restoring settings) or **Replace All**, backed by a full-state 5-second Undo toast.
+
+### 16. ⚡ Quick-Add Favorite Templates *(Added: November 12, 2026)*
+- **1-Click Template Chips:** Pin frequent daily purchases above the entry form (seeded with sample everyday items on first visit) and log them for today's date in a single tap.
+- **Custom Template Pinning:** Fill Title, Amount, and Category in the form and click **+ Pin Current** to save reusable templates; unpin anytime with 5-second Undo protection.
+
 ---
 
 ## 🛡️ Form Validation & Error Handling Matrix
@@ -163,12 +195,9 @@ The platform provides an end-to-end personal finance management suite featuring:
 
 ## 📖 User Workflow & Operation Guide
 
-### 1. Recording a New Expense
-1. Enter the expense description in the **Title / Description** field (e.g., *"Grocery shopping"*).
-2. Enter the amount in Indian Rupees in the **Amount (₹)** field (e.g., *"2500"*).
-3. Select an existing category from the dropdown or type a new custom category directly into the combobox.
-4. Select the transaction date using the calendar picker (defaults to today's date).
-5. Click **➕ Add Expense**. The expense is logged, summary cards recalculate, and the record appears in the ledger.
+### 1. Recording a New Expense & Using Quick Templates *(Updated: November 12, 2026)*
+1. **1-Click Quick-Add:** Tap any chip in **⚡ Quick-Add Templates** (e.g., `🍔 Morning Coffee ₹60`) to log it immediately for today, or fill the form and click **+ Pin Current** to save your own template.
+2. **Custom Entry:** Enter Title, Amount (₹), Category (select or type custom), Date, and optional Repeat schedule, then click **➕ Add Expense**.
 
 ### 2. Modifying, Deleting & Bulk Actions *(Updated: November 11, 2026)*
 - **Edit Record:** Click the **✏️ Edit** button on any table row or mobile card. The form loads the transaction values, displays an amber **"Editing"** badge, and enables an optional **"Cancel"** button.
@@ -200,9 +229,9 @@ The platform provides an end-to-end personal finance management suite featuring:
 - **Quick Range Presets:** Click **Today**, **This Week**, or **This Month** to instantly apply date filters.
 - **Reset Filters:** Click **Reset Filters** to restore all filter controls to default.
 
-### 7. Exporting Financial Audit Reports *(Added: November 10, 2026)*
-- Click the **📄 Export PDF** button in the ledger header (or **📄 Export Selected** in the bulk bar).
-- An official, multi-page PDF document (`Expense_Report_YYYY-MM-DD.pdf`) is instantly generated client-side and downloaded without third-party libraries.
+### 7. Exporting PDF & Data Backup / Restore *(Updated: November 12, 2026)*
+- **Financial Audit PDF:** Click **📄 Export PDF** in the ledger header (or **📄 Export Selected** in the bulk bar) to download `Expense_Report_YYYY-MM-DD.pdf`.
+- **Backup & Restore:** Click **💾 Backup & Import** in the header to export a full `.json` backup or `.csv` spreadsheet, or drag-and-drop a `.json`/`.csv` file to preview duplicates and merge/replace data safely.
 
 ---
 
@@ -213,9 +242,9 @@ The platform provides an end-to-end personal finance management suite featuring:
 | **Markup** | HTML5 | Clean semantic structure (`header`, `main`, `section`, `table`, `dialog`) with accessible ARIA landmarks. |
 | **Styling** | CSS3 | Responsive CSS Grid, Flexbox layout, CSS custom properties (variables), dark/light theme tokens, and animations. |
 | **Visualizations** | Pure Inline SVG | Hand-crafted SVG donut and trend bar charts built dynamically via DOM/SVG without charting libraries. |
-| **Logic** | Vanilla JavaScript (ES6+) | Array methods (`.filter()`, `.sort()`, `.reduce()`), event delegation, Undo toast engine, and Web Storage API. |
-| **Export** | Native JS PDF 1.4 | Client-side pure binary PDF generator stream without external dependencies. |
-| **External Dependencies** | **None (Zero)** | 100% self-contained codebase without jQuery, React, Bootstrap, Chart.js, or NPM build tools. |
+| **Logic & Data** | Vanilla JavaScript (ES6+) | Array methods, event delegation, Undo toast engine, `FileReader` JSON/CSV parser, and Web Storage API. |
+| **Export** | Native JS PDF 1.4 & CSV | Client-side binary PDF 1.4 generator, RFC-4180 CSV exporter, and JSON backup serializer. |
+| **External Dependencies** | **None (Zero)** | 100% self-contained codebase without jQuery, React, Bootstrap, Chart.js, PapaParse, or NPM build tools. |
 
 ---
 
@@ -223,9 +252,9 @@ The platform provides an end-to-end personal finance management suite featuring:
 
 ```
 Interactive_Expense_Tracker/
-├── index.html       # Single-page portal: analytics charts, reminders, forms, bulk bar & accessible modals
-├── style.css        # Responsive styling: dark/light theme tokens, SVG chart styles, toast alerts & mobile cards
-├── script.js        # Core engine: state, SVG charts, recurring schedules, 5s undo toasts, bulk ops & PDF export
+├── index.html       # Single-page portal: analytics charts, reminders, templates, forms, bulk bar & modals
+├── style.css        # Responsive styling: dark/light tokens, template chips, dropzone, toast alerts & cards
+├── script.js        # Core engine: state, SVG charts, recurring bills, templates, JSON/CSV import & PDF export
 └── README.md        # Technical documentation, dated feature changelog, and user operation guide
 ```
 
@@ -255,6 +284,34 @@ No Node.js, npm, webpack, or server dependencies are required. Simply open `inde
      ```bash
      xdg-open index.html
      ```
+
+---
+
+## 🌐 Deployment Configuration
+
+Because this app uses only pure static files (`index.html`, `style.css`, `script.js`), no build script or backend server is needed.
+
+| Setting | Value |
+| :--- | :--- |
+| **Framework / Preset** | Other / Static HTML |
+| **Build Command** | *None* (leave blank) |
+| **Output / Publish Directory** | `.` (root folder) |
+| **Install Command** | *None* (no `package.json` / `node_modules`) |
+| **Environment Variables** | *None required* |
+| **Entry Point** | `index.html` |
+
+### Deploy in 1 Minute
+- **GitHub Pages:**
+  1. Push your code to GitHub (`main` branch).
+  2. Go to **Repository → Settings → Pages**.
+  3. Set **Source** to `Deploy from a branch`, pick branch **`main`** and folder **`/ (root)`**, and click **Save**.
+  4. Open your live site URL: `https://mushraf0105.github.io/Interactive_Expense_Tracker/`.
+- **Netlify / Vercel:**
+  1. Import the GitHub repository (`Mushraf0105/Interactive_Expense_Tracker`).
+  2. Keep **Build Command** empty and set **Output / Publish Directory** to `.` (`/`).
+  3. Click **Deploy**.
+- **Local Static Server (Optional):**
+  - Open directly via `index.html`, or use VS Code **Live Server** extension / `python -m http.server 8080`.
 
 ---
 
